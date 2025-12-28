@@ -1,7 +1,8 @@
 import { Routes, Route, NavLink, Navigate } from 'react-router-dom'
-import { SignInButton, SignOutButton, UserButton } from '@clerk/clerk-react'
+import { SignInButton, UserButton } from '@clerk/clerk-react'
 import { Authenticated, Unauthenticated, AuthLoading } from 'convex/react'
 import { Suspense, lazy } from 'react'
+import { OfflineBanner } from './components/OfflineBanner'
 
 // Lazy load mini-apps
 const TasksApp = lazy(() => import('./apps/tasks/TasksApp'))
@@ -10,6 +11,9 @@ const PackingApp = lazy(() => import('./apps/packing/PackingApp'))
 function App() {
   return (
     <div className="min-h-screen flex flex-col">
+      {/* Offline Banner */}
+      <OfflineBanner />
+
       {/* Header */}
       <header className="bg-slate-800 border-b border-slate-700 px-4 py-3">
         <div className="max-w-4xl mx-auto flex items-center justify-between">
