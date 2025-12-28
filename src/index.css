@@ -1,0 +1,11 @@
+@import "tailwindcss";
+
+/* Custom base styles */
+body {
+  @apply bg-slate-900 text-slate-100 min-h-screen;
+}
+
+/* Smooth transitions for app switching */
+.app-container {
+  @apply transition-opacity duration-200;
+}
