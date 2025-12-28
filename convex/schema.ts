@@ -2,20 +2,22 @@ import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 
 export default defineSchema({
-  // Tasks app tables
+  // Tasks app tables - shared by all users
+  // userId is optional for backwards compatibility with existing data
   tasks: defineTable({
     text: v.string(),
     isCompleted: v.boolean(),
-    userId: v.string(), // Optional for migration from old data
-    createdAt: v.number(), // Optional for migration from old data
-  }).index("by_user", ["userId"]),
+    createdAt: v.number(),
+    userId: v.optional(v.string()),
+  }),
 
-  // Packing app tables
+  // Packing app tables - shared by all users
+  // userId is optional for backwards compatibility with existing data
   packing_trips: defineTable({
     name: v.string(),
-    userId: v.string(),
     createdAt: v.number(),
-  }).index("by_user", ["userId"]),
+    userId: v.optional(v.string()),
+  }),
 
   packing_items: defineTable({
     tripId: v.id("packing_trips"),

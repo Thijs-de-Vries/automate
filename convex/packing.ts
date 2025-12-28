@@ -4,6 +4,8 @@
  * This app has TWO tables:
  * - packing_trips: The trips (e.g., "Beach Vacation", "Business Trip")
  * - packing_items: Items in each trip (e.g., "Sunscreen", "Laptop")
+ * 
+ * All data is shared between users - no per-user filtering.
  */
 
 import { query, mutation } from "./_generated/server";
@@ -21,38 +23,51 @@ export const CATEGORIES = [
 ] as const;
 
 // ============================================
-// HELPER: Get the current logged-in user
+// HELPER: Check if user is authenticated
 // ============================================
-async function getCurrentUser(ctx: any) {
+async function requireAuth(ctx: any) {
   const identity = await ctx.auth.getUserIdentity();
   if (!identity) {
-    return null;
+    throw new Error("You must be logged in");
   }
-  return {
-    id: identity.subject,
-    email: identity.email,
-    name: identity.name,
-  };
+  return identity;
 }
+
+// ============================================
+// GET STATS: For home page cards
+// ============================================
+export const getStats = query({
+  args: {},
+  handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      return null;
+    }
+
+    const trips = await ctx.db.query("packing_trips").collect();
+    return {
+      tripCount: trips.length,
+    };
+  },
+});
 
 // ============================================
 // TRIPS - List, Create, Delete
 // ============================================
 
 /**
- * Get all trips for the current user
+ * Get all trips
  */
 export const listTrips = query({
   args: {},
   handler: async (ctx) => {
-    const user = await getCurrentUser(ctx);
-    if (!user) {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
       return [];
     }
 
     const trips = await ctx.db
       .query("packing_trips")
-      .withIndex("by_user", (q) => q.eq("userId", user.id))
       .order("desc")
       .collect();
 
@@ -65,18 +80,14 @@ export const listTrips = query({
  */
 export const createTrip = mutation({
   args: { 
-    name: v.string(),  // e.g., "Hawaii Vacation"
+    name: v.string(),
   },
 
   handler: async (ctx, args) => {
-    const user = await getCurrentUser(ctx);
-    if (!user) {
-      throw new Error("You must be logged in to create a trip");
-    }
+    await requireAuth(ctx);
 
     const tripId = await ctx.db.insert("packing_trips", {
       name: args.name,
-      userId: user.id,
       createdAt: Date.now(),
     });
 
@@ -93,14 +104,10 @@ export const deleteTrip = mutation({
   },
 
   handler: async (ctx, args) => {
-    const user = await getCurrentUser(ctx);
-    if (!user) {
-      throw new Error("You must be logged in");
-    }
+    await requireAuth(ctx);
 
-    // Get the trip
     const trip = await ctx.db.get(args.id);
-    if (!trip || trip.userId !== user.id) {
+    if (!trip) {
       throw new Error("Trip not found");
     }
 
@@ -132,18 +139,16 @@ export const listItems = query({
   },
 
   handler: async (ctx, args) => {
-    const user = await getCurrentUser(ctx);
-    if (!user) {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
       return [];
     }
 
-    // First verify the trip belongs to this user
     const trip = await ctx.db.get(args.tripId);
-    if (!trip || trip.userId !== user.id) {
+    if (!trip) {
       return [];
     }
 
-    // Get all items for this trip
     const items = await ctx.db
       .query("packing_items")
       .withIndex("by_trip", (q) => q.eq("tripId", args.tripId))
@@ -159,19 +164,15 @@ export const listItems = query({
 export const addItem = mutation({
   args: {
     tripId: v.id("packing_trips"),
-    text: v.string(),      // e.g., "Sunscreen"
-    category: v.string(),  // e.g., "toiletries"
+    text: v.string(),
+    category: v.string(),
   },
 
   handler: async (ctx, args) => {
-    const user = await getCurrentUser(ctx);
-    if (!user) {
-      throw new Error("You must be logged in");
-    }
+    await requireAuth(ctx);
 
-    // Verify trip ownership
     const trip = await ctx.db.get(args.tripId);
-    if (!trip || trip.userId !== user.id) {
+    if (!trip) {
       throw new Error("Trip not found");
     }
 
@@ -196,24 +197,13 @@ export const toggleItem = mutation({
   },
 
   handler: async (ctx, args) => {
-    const user = await getCurrentUser(ctx);
-    if (!user) {
-      throw new Error("You must be logged in");
-    }
+    await requireAuth(ctx);
 
-    // Get the item
     const item = await ctx.db.get(args.id);
     if (!item) {
       throw new Error("Item not found");
     }
 
-    // Verify the item's trip belongs to this user
-    const trip = await ctx.db.get(item.tripId);
-    if (!trip || trip.userId !== user.id) {
-      throw new Error("Not authorized");
-    }
-
-    // Toggle the packed status
     await ctx.db.patch(args.id, { 
       isPacked: !item.isPacked 
     });
@@ -229,21 +219,11 @@ export const removeItem = mutation({
   },
 
   handler: async (ctx, args) => {
-    const user = await getCurrentUser(ctx);
-    if (!user) {
-      throw new Error("You must be logged in");
-    }
+    await requireAuth(ctx);
 
-    // Get the item
     const item = await ctx.db.get(args.id);
     if (!item) {
       throw new Error("Item not found");
-    }
-
-    // Verify the item's trip belongs to this user
-    const trip = await ctx.db.get(item.tripId);
-    if (!trip || trip.userId !== user.id) {
-      throw new Error("Not authorized");
     }
 
     await ctx.db.delete(args.id);
