@@ -3,7 +3,7 @@
 export default {
   providers: [
     {
-      domain: "https://singular-malamute-43.clerk.accounts.dev",
+      domain: "https://clerk.auto-m8.app",
       applicationID: "convex",
     },
   ],
