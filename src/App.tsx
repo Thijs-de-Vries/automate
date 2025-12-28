@@ -1,10 +1,11 @@
-import { Routes, Route, NavLink, Navigate } from 'react-router-dom'
+import { Routes, Route, NavLink } from 'react-router-dom'
 import { SignInButton, UserButton } from '@clerk/clerk-react'
 import { Authenticated, Unauthenticated, AuthLoading } from 'convex/react'
 import { Suspense, lazy } from 'react'
 import { OfflineBanner } from './components/OfflineBanner'
 
 // Lazy load mini-apps
+const HomePage = lazy(() => import('./apps/home/HomePage'))
 const TasksApp = lazy(() => import('./apps/tasks/TasksApp'))
 const PackingApp = lazy(() => import('./apps/packing/PackingApp'))
 
@@ -17,7 +18,7 @@ function App() {
       {/* Header */}
       <header className="bg-slate-800 border-b border-slate-700 px-4 py-3">
         <div className="max-w-4xl mx-auto flex items-center justify-between">
-          <h1 className="text-xl font-bold text-blue-400">Automate</h1>
+          <h1 className="text-xl font-bold text-blue-400">auto-m8</h1>
           <div className="flex items-center gap-3">
             <Authenticated>
               <UserButton afterSignOutUrl="/" />
@@ -46,7 +47,7 @@ function App() {
         <Authenticated>
           <Suspense fallback={<div className="text-center py-8">Loading app...</div>}>
             <Routes>
-              <Route path="/" element={<Navigate to="/tasks" replace />} />
+              <Route path="/" element={<HomePage />} />
               <Route path="/tasks" element={<TasksApp />} />
               <Route path="/packing/*" element={<PackingApp />} />
             </Routes>
@@ -54,11 +55,11 @@ function App() {
         </Authenticated>
         <Unauthenticated>
           <div className="text-center py-16">
-            <h2 className="text-2xl font-semibold mb-4">Welcome to Automate</h2>
-            <p className="text-slate-400 mb-6">Sign in to access your mini apps</p>
+            <h2 className="text-3xl font-bold mb-2">auto-m8</h2>
+            <p className="text-slate-400 mb-8">Your shared mini-apps for everyday life ✨</p>
             <SignInButton mode="modal">
-              <button className="px-6 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg font-medium transition-colors">
-                Get Started
+              <button className="px-6 py-3 bg-blue-600 hover:bg-blue-500 rounded-xl font-medium transition-colors">
+                Sign In
               </button>
             </SignInButton>
           </div>
@@ -69,6 +70,20 @@ function App() {
       <Authenticated>
         <nav className="bg-slate-800 border-t border-slate-700 px-4 py-2 sticky bottom-0">
           <div className="max-w-4xl mx-auto flex justify-around">
+            <NavLink
+              to="/"
+              end
+              className={({ isActive }) =>
+                `flex flex-col items-center py-2 px-4 rounded-lg transition-colors ${
+                  isActive ? 'text-blue-400 bg-slate-700' : 'text-slate-400 hover:text-slate-200'
+                }`
+              }
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+              </svg>
+              <span className="text-xs mt-1">Home</span>
+            </NavLink>
             <NavLink
               to="/tasks"
               className={({ isActive }) =>
