@@ -5,13 +5,12 @@ import { api } from '../../../convex/_generated/api'
 
 // Coming soon apps - easy to add more here!
 const COMING_SOON_APPS = [
-  { name: 'Shopping', icon: '🛒', description: 'Shared grocery list' },
-  { name: 'Watchlist', icon: '🎬', description: 'Movies & shows to watch' },
-  { name: 'Date Ideas', icon: '💡', description: 'Random date picker' },
+  { name: 'Clothing Tracker', icon: '👕', description: 'Keep track of what you bought' },
+  { name: 'Public Transport', icon: '🚌', description: 'Plan your trips and routes' },
 ]
 
 export default function HomePage() {
-  const { user } = useUser()
+  const { user } = useUser() // returns current user info from Clerk
   const taskStats = useQuery(api.tasks.getStats)
   const packingStats = useQuery(api.packing.getStats)
 
