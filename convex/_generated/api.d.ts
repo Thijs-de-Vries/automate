@@ -8,7 +8,10 @@
  * @module
  */
 
+import type * as crons from "../crons.js";
 import type * as packing from "../packing.js";
+import type * as publicTransport from "../publicTransport.js";
+import type * as publicTransportActions from "../publicTransportActions.js";
 import type * as tasks from "../tasks.js";
 
 import type {
@@ -18,7 +21,10 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  crons: typeof crons;
   packing: typeof packing;
+  publicTransport: typeof publicTransport;
+  publicTransportActions: typeof publicTransportActions;
   tasks: typeof tasks;
 }>;
 

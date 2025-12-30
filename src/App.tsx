@@ -8,6 +8,7 @@ import { OfflineBanner } from './components/OfflineBanner'
 const HomePage = lazy(() => import('./apps/home/HomePage'))
 const TasksApp = lazy(() => import('./apps/tasks/TasksApp'))
 const PackingApp = lazy(() => import('./apps/packing/PackingApp'))
+const PublicTransportApp = lazy(() => import('./apps/public-transport/PublicTransportApp'))
 
 function App() {
   return (
@@ -50,6 +51,7 @@ function App() {
               <Route path="/" element={<HomePage />} />
               <Route path="/tasks" element={<TasksApp />} />
               <Route path="/packing/*" element={<PackingApp />} />
+              <Route path="/transport/*" element={<PublicTransportApp />} />
             </Routes>
           </Suspense>
         </Authenticated>
@@ -109,6 +111,19 @@ function App() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
               </svg>
               <span className="text-xs mt-1">Packing</span>
+            </NavLink>
+            <NavLink
+              to="/transport"
+              className={({ isActive }) =>
+                `flex flex-col items-center py-2 px-4 rounded-lg transition-colors ${
+                  isActive ? 'text-blue-400 bg-slate-700' : 'text-slate-400 hover:text-slate-200'
+                }`
+              }
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h8m-8 5h8m-4-10v18M5 21h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v14a2 2 0 002 2z" />
+              </svg>
+              <span className="text-xs mt-1">Transport</span>
             </NavLink>
           </div>
         </nav>
