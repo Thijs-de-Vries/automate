@@ -2,6 +2,13 @@
   "name": "automate",
   "private": true,
   "version": "0.0.1",
+  "description": "A suite of personal automation tools including Packing, Public Transport monitoring, and Tasks.",
+  "author": "Thijs de Vries",
+  "license": "CC-BY-NC-4.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Thijs-de-Vries/automate.git"
+  },
   "type": "module",
   "scripts": {
     "dev": "vite --host",

@@ -1,73 +1,34 @@
-# React + TypeScript + Vite
+# Automate
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A suite of personal automation tools designed to streamline daily tasks, travel packing, and public transport monitoring. Built with React, Vite, Clerk, and Convex.
 
-Currently, two official plugins are available:
+## Features
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+### 🧳 Packing App
+A comprehensive travel companion to ensure you never forget an item.
+- **Trip Management:** Create and manage multiple trips.
+- **Categorized Lists:** Organize items by categories (Clothes, Toiletries, Electronics, etc.).
+- **Status Tracking:** Toggle items as packed/unpacked.
 
-## React Compiler
+### 🚆 Public Transport App
+Real-time dashboard for monitoring Dutch public transport (NS).
+- **Route Monitoring:** Define custom routes with origin, destination, and schedule.
+- **Disruption Alerts:** Track maintenance and calamities for your specific routes.
+- **Station Data:** Syncs with NS API for up-to-date station information.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+### ✅ Tasks App
+A simple and effective To-Do list manager.
+- **Task Management:** Add, complete, and delete tasks.
+- **Progress Tracking:** Visual counter for completed vs. total tasks.
 
-## Expanding the ESLint configuration
+## Tech Stack
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+- **Frontend:** [React](https://react.dev/), [Vite](https://vitejs.dev/), [Tailwind CSS](https://tailwindcss.com/)
+- **Backend:** [Convex](https://convex.dev/) (Real-time database & backend functions)
+- **Authentication:** [Clerk](https://clerk.com/)
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+## License
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
-
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
-
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+This project is licensed under the **Creative Commons Attribution-NonCommercial 4.0 International Public License (CC BY-NC 4.0)**.
+You are free to share and adapt the material for non-commercial purposes, provided you give appropriate credit. See the [LICENSE](LICENSE) file for details.
