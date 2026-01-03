@@ -11,6 +11,7 @@
 
 import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
+import { internal } from "./_generated/api";
 
 // ============================================
 // HELPER: Check if user is authenticated
@@ -100,9 +101,22 @@ export const toggle = mutation({
       throw new Error("Task not found");
     }
 
+    const wasCompleted = task.isCompleted;
+    const nowCompleted = !wasCompleted;
+
     await ctx.db.patch(args.id, { 
-      isCompleted: !task.isCompleted 
+      isCompleted: nowCompleted 
     });
+
+    // Send push notification when task is completed
+    if (!wasCompleted && nowCompleted) {
+      await ctx.scheduler.runAfter(0, internal.notificationsNode.sendPushToAll, {
+        title: "Task completed ✓",
+        body: task.text,
+        url: "/tasks",
+        tag: `task-${args.id}`,
+      });
+    }
   },
 });
 

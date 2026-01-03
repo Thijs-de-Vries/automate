@@ -1,8 +1,9 @@
 import { Routes, Route, NavLink } from 'react-router-dom'
-import { SignInButton, UserButton } from '@clerk/clerk-react'
+import { SignInButton } from '@clerk/clerk-react'
 import { Authenticated, Unauthenticated, AuthLoading } from 'convex/react'
 import { Suspense, lazy } from 'react'
 import { OfflineBanner } from './components/OfflineBanner'
+import { UserButtonWithNotifications } from './components/UserButtonWithNotifications'
 
 // Lazy load mini-apps
 const HomePage = lazy(() => import('./apps/home/HomePage'))
@@ -22,7 +23,7 @@ function App() {
           <h1 className="text-xl font-bold text-blue-400">auto-m8</h1>
           <div className="flex items-center gap-3">
             <Authenticated>
-              <UserButton afterSignOutUrl="/" />
+              <UserButtonWithNotifications />
             </Authenticated>
             <Unauthenticated>
               <SignInButton mode="modal">

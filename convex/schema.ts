@@ -91,4 +91,17 @@ export default defineSchema({
     hasActiveDisruptions: v.boolean(),
     changedSinceLastView: v.boolean(), // true = show red badge
   }).index("by_route", ["routeId"]),
+
+  // ============================================
+  // Push Notification Subscriptions
+  // ============================================
+  pushSubscriptions: defineTable({
+    endpoint: v.string(), // Push service URL
+    p256dh: v.string(), // Public key for encryption
+    auth: v.string(), // Auth secret
+    userId: v.string(), // Clerk user ID
+    userAgent: v.optional(v.string()), // For device identification
+    createdAt: v.number(),
+  }).index("by_user", ["userId"])
+    .index("by_endpoint", ["endpoint"]),
 });

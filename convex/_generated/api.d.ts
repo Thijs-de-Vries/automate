@@ -9,6 +9,8 @@
  */
 
 import type * as crons from "../crons.js";
+import type * as notifications from "../notifications.js";
+import type * as notificationsNode from "../notificationsNode.js";
 import type * as packing from "../packing.js";
 import type * as publicTransport from "../publicTransport.js";
 import type * as publicTransportActions from "../publicTransportActions.js";
@@ -22,6 +24,8 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   crons: typeof crons;
+  notifications: typeof notifications;
+  notificationsNode: typeof notificationsNode;
   packing: typeof packing;
   publicTransport: typeof publicTransport;
   publicTransportActions: typeof publicTransportActions;
