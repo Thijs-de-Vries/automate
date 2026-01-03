@@ -74,22 +74,38 @@ export const checkMorningDisruptions = internalAction({
  *   - Start 120 mins before, check every 10 mins
  *   - Then 60 mins before, switch to every 5 mins
  */
-async function scheduleFollowUpChecks(ctx: any, route: any) {
+export async function scheduleFollowUpChecks(ctx: any, route: any) {
   const now = new Date();
+  
+  // 1. Get current date in Amsterdam timezone to determine "today" in NL
+  // This handles the case where server is UTC but user is in NL
+  const amsDateString = now.toLocaleString("en-US", { timeZone: "Europe/Amsterdam" });
+  const amsDate = new Date(amsDateString);
+  
+  // 2. Parse route departure time (e.g. "08:00")
   const [hours, minutes] = route.departureTime.split(":").map(Number);
 
-  // Create departure time for today
-  const departure = new Date(now);
-  departure.setHours(hours, minutes, 0, 0);
+  // 3. Create departure date object relative to the Amsterdam date
+  // We set the hours/minutes on the "Amsterdam Date" object
+  const departureTarget = new Date(amsDate);
+  departureTarget.setHours(hours, minutes, 0, 0);
+
+  // 4. Calculate the difference between "Target Amsterdam Time" and "Current Amsterdam Time"
+  // This difference (ms) is the same as the difference in absolute UTC time
+  const msUntilDeparture = departureTarget.getTime() - amsDate.getTime();
+  const minutesUntilDeparture = msUntilDeparture / 60000;
+
+  console.log(
+    `[Cron] Scheduling for ${route.name}: Now (AMS)=${amsDate.toLocaleTimeString()}, Departure (AMS)=${departureTarget.toLocaleTimeString()} (${Math.round(minutesUntilDeparture)} min away)`
+  );
 
   // Don't schedule if departure is in the past
-  if (departure.getTime() <= now.getTime()) {
+  if (msUntilDeparture <= 0) {
     console.log(`[Cron] Skipping ${route.name} - departure time already passed`);
     return;
   }
 
-  const msUntilDeparture = departure.getTime() - now.getTime();
-  const minutesUntilDeparture = msUntilDeparture / 60000;
+  let scheduledCount = 0;
 
   if (route.urgencyLevel === "important") {
     // Important: Check every 10 mins starting 120 mins before
@@ -104,6 +120,8 @@ async function scheduleFollowUpChecks(ctx: any, route: any) {
         await ctx.scheduler.runAfter(delayMs, internal.publicTransportActions.checkRouteDisruptions, {
           routeId: route._id,
         });
+        scheduledCount++;
+        console.log(`[Cron] -> Scheduled check at -${Math.round(minsBefore)} min`);
       }
     }
 
@@ -114,6 +132,8 @@ async function scheduleFollowUpChecks(ctx: any, route: any) {
         await ctx.scheduler.runAfter(delayMs, internal.publicTransportActions.checkRouteDisruptions, {
           routeId: route._id,
         });
+        scheduledCount++;
+        console.log(`[Cron] -> Scheduled check at -${Math.round(minsBefore)} min`);
       }
     }
   } else {
@@ -126,11 +146,13 @@ async function scheduleFollowUpChecks(ctx: any, route: any) {
         await ctx.scheduler.runAfter(delayMs, internal.publicTransportActions.checkRouteDisruptions, {
           routeId: route._id,
         });
+        scheduledCount++;
+        console.log(`[Cron] -> Scheduled check at -${Math.round(minsBefore)} min`);
       }
     }
   }
 
-  console.log(`[Cron] Scheduled checks for ${route.name} (${route.urgencyLevel}) departing at ${route.departureTime}`);
+  console.log(`[Cron] Scheduled ${scheduledCount} checks for ${route.name} (${route.urgencyLevel}) departing at ${route.departureTime}`);
 }
 
 // ============================================
