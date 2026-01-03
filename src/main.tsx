@@ -8,9 +8,6 @@ import './index.css'
 import App from './App.tsx'
 
 const convex = new ConvexReactClient(import.meta.env.VITE_CONVEX_URL as string)
-
-// TODO: Add your Clerk publishable key to .env.local
-// VITE_CLERK_PUBLISHABLE_KEY=pk_test_...
 const clerkPubKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY as string
 
 createRoot(document.getElementById('root')!).render(
