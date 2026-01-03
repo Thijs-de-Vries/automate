@@ -56,6 +56,7 @@ export const list = query({
 
     const exercises = await ctx.db
       .query("calisthenics")
+      .filter((q) => q.eq(q.field("userId"), identity.subject))
       .order("desc")
       .collect();
 
@@ -96,11 +97,15 @@ export const toggle = mutation({
   },
 
   handler: async (ctx, args) => {
-    await requireAuth(ctx);
+    const identity = await requireAuth(ctx);
 
     const exercise = await ctx.db.get(args.id);
     if (!exercise) {
       throw new Error("Exercise not found");
+    }
+
+    if (exercise.userId !== identity.subject) {
+      throw new Error("You can only toggle your own exercises");
     }
 
     const wasCompleted = exercise.isCompleted;
@@ -122,11 +127,15 @@ export const remove = mutation({
   },
 
   handler: async (ctx, args) => {
-    await requireAuth(ctx);
+    const identity = await requireAuth(ctx);
 
     const exercise = await ctx.db.get(args.id);
     if (!exercise) {
       throw new Error("Exercise not found");
+    }
+
+    if (exercise.userId !== identity.subject) {
+      throw new Error("You can only delete your own exercises");
     }
 
     await ctx.db.delete(args.id);
