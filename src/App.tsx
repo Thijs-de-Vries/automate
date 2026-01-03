@@ -12,6 +12,7 @@ const HomePage = lazy(() => import('./apps/home/HomePage'))
 const TasksApp = lazy(() => import('./apps/tasks/TasksApp'))
 const PackingApp = lazy(() => import('./apps/packing/PackingApp'))
 const PublicTransportApp = lazy(() => import('./apps/public-transport/PublicTransportApp'))
+const CalisthenicsApp = lazy(() => import('./apps/calisthenics/CalisthenicsApp'))
 
 function App() {
   return (
@@ -59,6 +60,7 @@ function App() {
               <Route path="/tasks" element={<TasksApp />} />
               <Route path="/packing/*" element={<PackingApp />} />
               <Route path="/transport/*" element={<PublicTransportApp />} />
+              <Route path="/calisthenics/*" element={<CalisthenicsApp />} />
             </Routes>
           </Suspense>
         </Authenticated>

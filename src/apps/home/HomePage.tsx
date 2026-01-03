@@ -88,12 +88,23 @@ export default function HomePage() {
             </div>
           )}
         </Link>
+        {/* Calisthenics Card */}
+        <Link
+          to="/calisthenics"
+          className="group p-5 bg-slate-800 hover:bg-slate-750 border border-slate-700 hover:border-blue-500/50 rounded-2xl transition-all duration-200 hover:scale-[1.02] hover:shadow-lg hover:shadow-blue-500/10"
+        >
+          <div className="text-3xl mb-3">🤸‍♂️</div>
+          <h3 className="font-semibold text-lg group-hover:text-blue-400 transition-colors">
+            Calisthenics
+          </h3>
+          <p className="text-sm text-slate-400 mt-1">Track your workouts and progress</p>
+        </Link>
       </div>
 
       {/* Coming Soon */}
       <div>
         <h3 className="text-sm font-medium text-slate-500 uppercase tracking-wide mb-3">
-          Coming Soon
+          "Coming Soon" (3-5 buisness days)
         </h3>
         <div className="grid grid-cols-3 gap-3">
           {COMING_SOON_APPS.map((app) => (

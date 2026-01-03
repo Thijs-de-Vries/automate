@@ -104,4 +104,13 @@ export default defineSchema({
     createdAt: v.number(),
   }).index("by_user", ["userId"])
     .index("by_endpoint", ["endpoint"]),
+
+  // Tasks app tables - per user
+  calisthenics: defineTable({
+    exercise: v.string(),
+    reps: v.number(),
+    isCompleted: v.boolean(),
+    createdAt: v.number(),
+    userId: v.string(),
+  }),
 });
