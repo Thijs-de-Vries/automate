@@ -31,3 +31,6 @@ dist-ssr
 temp
 *.tmp
 *.temp
+
+# AI stuff
+_AI-ref

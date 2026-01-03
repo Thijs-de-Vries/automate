@@ -4,6 +4,8 @@ import { Authenticated, Unauthenticated, AuthLoading } from 'convex/react'
 import { Suspense, lazy } from 'react'
 import { OfflineBanner } from './components/OfflineBanner'
 import { UserButtonWithNotifications } from './components/UserButtonWithNotifications'
+import { UpdateProvider } from './contexts/UpdateContext'
+import { UpdateToast } from './components/UpdateToast'
 
 // Lazy load mini-apps
 const HomePage = lazy(() => import('./apps/home/HomePage'))
@@ -13,9 +15,13 @@ const PublicTransportApp = lazy(() => import('./apps/public-transport/PublicTran
 
 function App() {
   return (
-    <div className="min-h-screen flex flex-col">
-      {/* Offline Banner */}
-      <OfflineBanner />
+    <UpdateProvider>
+      <div className="min-h-screen flex flex-col">
+        {/* Offline Banner */}
+        <OfflineBanner />
+
+        {/* PWA Update Toast */}
+        <UpdateToast />
 
       {/* Header */}
       <header className="bg-slate-800 border-b border-slate-700 px-4 py-3">
@@ -129,7 +135,8 @@ function App() {
           </div>
         </nav>
       </Authenticated>
-    </div>
+      </div>
+    </UpdateProvider>
   )
 }
 
