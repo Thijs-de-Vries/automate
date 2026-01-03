@@ -84,7 +84,7 @@ export default function TasksApp() {
               </span>
               <button
                 onClick={() => removeTask({ id: task._id })}
-                className="opacity-0 group-hover:opacity-100 p-1 text-slate-500 hover:text-red-400 transition-all"
+                className="opacity-100 group-hover:opacity-100 p-1 text-slate-500 hover:text-red-400 transition-all"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path
