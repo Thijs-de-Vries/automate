@@ -148,7 +148,23 @@ export const checkRouteDisruptions = internalAction({
       for (const disruption of disruptions) {
         const affectedStations = extractAffectedStations(disruption, stationCodes);
 
-        if (affectedStations.length > 0 && !allDisruptions.has(disruption.id)) {
+        // For local disruptions (station-specific), one match is enough.
+        // For trajectory disruptions (A to B), we require at least 2 matching stations
+        // to ensure the disruption covers a segment of our route, not just a touching point
+        // (e.g. avoiding matching A->C disruption for an A->B route).
+        const isRelevant = disruption.local
+          ? affectedStations.length > 0
+          : affectedStations.length >= 2;
+
+        if (isRelevant && !allDisruptions.has(disruption.id)) {
+          console.log(
+            `[Disruption Match] Route ${args.routeId}: Found ${
+              disruption.local ? "local" : "trajectory"
+            } disruption "${disruption.title}" (${disruption.id}). Matched ${
+              affectedStations.length
+            } stations: ${affectedStations.join(", ")}`
+          );
+
           allDisruptions.set(disruption.id, {
             ...disruption,
             affectedStations,
