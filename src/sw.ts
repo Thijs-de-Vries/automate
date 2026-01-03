@@ -65,6 +65,13 @@ self.addEventListener('notificationclick', (event) => {
 });
 
 // ============================================
+// INSTALL: Skip waiting to activate new SW immediately
+// ============================================
+self.addEventListener('install', () => {
+  self.skipWaiting();
+});
+
+// ============================================
 // ACTIVATE: Claim clients immediately
 // ============================================
 self.addEventListener('activate', (event) => {
