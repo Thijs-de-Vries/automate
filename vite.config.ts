@@ -23,8 +23,8 @@ export default defineConfig({
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
       },
       manifest: {
-        name: 'Automate - Mini Apps',
-        short_name: 'Automate',
+        name: 'auto-m8 - Mini Apps',
+        short_name: 'auto-m8',
         description: 'A modular container for mini productivity apps',
         id: '/',
         start_url: '/',
