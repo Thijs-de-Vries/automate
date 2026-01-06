@@ -1,32 +1,28 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect } from 'react'
 import { Routes, Route, useNavigate, useParams, Link } from 'react-router-dom'
 import { useQuery, useMutation, useAction } from 'convex/react'
 import { api } from '../../../convex/_generated/api'
 import type { Id } from '../../../convex/_generated/dataModel'
-
-// ============================================
-// CONSTANTS
-// ============================================
+import { Button } from '@/components/ui/Button'
+import { Card } from '@/components/ui/Card'
+import { Train, Plus, RefreshCw, Trash2, AlertTriangle, Clock } from 'lucide-react'
+import { cn } from '@/lib/utils'
 
 const DAYS = [
-  { value: 0, label: 'Sun', short: 'Z' },
+  { value: 0, label: 'Sun', short: 'S' },
   { value: 1, label: 'Mon', short: 'M' },
-  { value: 2, label: 'Tue', short: 'D' },
+  { value: 2, label: 'Tue', short: 'T' },
   { value: 3, label: 'Wed', short: 'W' },
-  { value: 4, label: 'Thu', short: 'D' },
-  { value: 5, label: 'Fri', short: 'V' },
-  { value: 6, label: 'Sat', short: 'Z' },
+  { value: 4, label: 'Thu', short: 'T' },
+  { value: 5, label: 'Fri', short: 'F' },
+  { value: 6, label: 'Sat', short: 'S' },
 ]
 
-const DISRUPTION_ICONS: Record<string, string> = {
-  MAINTENANCE: '🛠️',
-  DISRUPTION: '🔴',
-  CALAMITY: '🚨',
+const DISRUPTION_TYPE_COLORS = {
+  MAINTENANCE: '#F59E0B',
+  DISRUPTION: '#EF4444',
+  CALAMITY: '#DC2626',
 }
-
-// ============================================
-// MAIN APP COMPONENT
-// ============================================
 
 export default function PublicTransportApp() {
   return (
@@ -37,10 +33,6 @@ export default function PublicTransportApp() {
     </Routes>
   )
 }
-
-// ============================================
-// ROUTES LIST
-// ============================================
 
 function RoutesList() {
   const routes = useQuery(api.publicTransport.listRoutes) ?? []
@@ -54,166 +46,152 @@ function RoutesList() {
       const result = await syncStations({})
       alert(`Synced ${result.synced} stations!`)
     } catch (error) {
-      alert(`Error: ${error}`)
+      alert(`Error syncing stations`)
     } finally {
       setSyncing(false)
     }
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-24">
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold">Public Transport</h2>
-        <Link
-          to="/transport/new"
-          className="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg font-medium transition-colors"
-        >
-          + Add Route
+        <Link to="/transport/new">
+          <Button>
+            <Plus className="w-5 h-5 mr-2" />
+            Add Route
+          </Button>
         </Link>
       </div>
 
       {/* Station cache status */}
-      <div className="p-3 bg-slate-800 rounded-lg flex items-center justify-between">
-        <span className="text-sm text-slate-400">
-          {stationCount > 0 
-            ? `${stationCount} stations cached` 
-            : 'No stations cached yet'}
+      <Card className="p-4 flex items-center justify-between">
+        <span className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
+          {stationCount > 0 ? `${stationCount} stations cached` : 'No stations cached'}
         </span>
-        <button
+        <Button
           onClick={handleSyncStations}
           disabled={syncing}
-          className="text-sm px-3 py-1 bg-slate-700 hover:bg-slate-600 disabled:opacity-50 rounded transition-colors"
+          variant="outline"
+          size="sm"
         >
           {syncing ? 'Syncing...' : 'Sync Stations'}
-        </button>
-      </div>
+        </Button>
+      </Card>
 
       {/* Routes list */}
-      <ul className="space-y-3">
+      <div className="space-y-3">
         {routes.length === 0 ? (
-          <li className="text-center py-8 text-slate-500">
-            No routes yet. Add one above!
-          </li>
+          <Card className="p-12 text-center">
+            <div className="flex flex-col items-center gap-3">
+              <div className="w-16 h-16 rounded-2xl flex items-center justify-center"
+                   style={{ backgroundColor: 'var(--primary-muted)' }}>
+                <Train className="w-8 h-8" style={{ color: 'var(--primary)' }} />
+              </div>
+              <div>
+                <p className="font-medium">No routes yet</p>
+                <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
+                  Create your first route to start monitoring disruptions
+                </p>
+              </div>
+            </div>
+          </Card>
         ) : (
-          routes.map((route) => (
-            <RouteCard key={route._id} route={route} />
-          ))
+          routes.map((route) => <RouteCard key={route._id} route={route} />)
         )}
-      </ul>
+      </div>
     </div>
   )
 }
 
-// ============================================
-// ROUTE CARD
-// ============================================
-
 function RouteCard({ route }: { route: any }) {
   const hasChanges = route.status?.changedSinceLastView
   const disruptionCount = route.activeDisruptionCount || 0
-  const additionalTravelTime = route.additionalTravelTimeSummary
+  const additionalTime = route.additionalTravelTimeSummary
 
   return (
-    <Link
-      to={`/transport/${route._id}`}
-      className="block p-4 bg-slate-800 hover:bg-slate-750 border border-slate-700 hover:border-blue-500/50 rounded-xl transition-all group"
-    >
-      <div className="flex items-start gap-3">
-        {/* Icon with badge */}
-        <div className="relative">
-          <span className="text-2xl">🚆</span>
-          {hasChanges && (
-            <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full" />
+    <Link to={`/transport/${route._id}`}>
+      <Card className="p-4 transition-all hover:scale-[1.01] relative">
+        {hasChanges && (
+          <div className="absolute -top-1 -right-1 w-3 h-3 rounded-full"
+               style={{ backgroundColor: 'var(--destructive)' }} />
+        )}
+        
+        <div className="flex items-start gap-3">
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+               style={{ backgroundColor: 'var(--primary-muted)' }}>
+            <Train className="w-5 h-5" style={{ color: 'var(--primary)' }} />
+          </div>
+
+          <div className="flex-1 min-w-0">
+            <h3 className="font-semibold truncate">{route.name}</h3>
+            <p className="text-sm truncate" style={{ color: 'var(--muted-foreground)' }}>
+              {route.originName} → {route.destinationName}
+            </p>
+            
+            <div className="flex items-center gap-2 mt-2 flex-wrap">
+              {/* Days */}
+              <div className="flex gap-0.5">
+                {DAYS.map((day) => (
+                  <span
+                    key={day.value}
+                    className={cn(
+                      "w-5 h-5 text-xs flex items-center justify-center rounded",
+                      route.scheduleDays.includes(day.value)
+                        ? "bg-[var(--primary)] text-white"
+                        : "bg-[var(--surface-hover)] opacity-30"
+                    )}
+                    style={{ color: route.scheduleDays.includes(day.value) ? 'white' : 'var(--muted)' }}
+                  >
+                    {day.short}
+                  </span>
+                ))}
+              </div>
+              <span className="text-xs" style={{ color: 'var(--muted)' }}>
+                @ {route.departureTime}
+              </span>
+              {route.urgencyLevel === 'important' && (
+                <span className="text-xs px-1.5 py-0.5 rounded"
+                      style={{ backgroundColor: 'var(--warning-muted)', color: 'var(--warning)' }}>
+                  ⚡ Important
+                </span>
+              )}
+              {additionalTime && (
+                <span className="text-xs px-1.5 py-0.5 rounded"
+                      style={{ backgroundColor: 'var(--warning-muted)', color: 'var(--warning)' }}>
+                  {additionalTime}
+                </span>
+              )}
+            </div>
+          </div>
+
+          {disruptionCount > 0 && (
+            <div className="px-2 py-1 rounded-lg text-sm font-medium shrink-0"
+                 style={{ backgroundColor: 'var(--destructive-muted)', color: 'var(--destructive)' }}>
+              {disruptionCount}
+            </div>
           )}
         </div>
-
-        {/* Route info */}
-        <div className="flex-1 min-w-0">
-          <h3 className="font-semibold group-hover:text-blue-400 transition-colors truncate">
-            {route.name}
-          </h3>
-          <p className="text-sm text-slate-400 truncate">
-            {route.originName} → {route.destinationName}
-          </p>
-          <div className="flex items-center gap-2 mt-2">
-            {/* Schedule days */}
-            <div className="flex gap-0.5">
-              {DAYS.map((day) => (
-                <span
-                  key={day.value}
-                  className={`w-5 h-5 text-xs flex items-center justify-center rounded ${
-                    route.scheduleDays.includes(day.value)
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-slate-700 text-slate-500'
-                  }`}
-                >
-                  {day.short}
-                </span>
-              ))}
-            </div>
-            <span className="text-xs text-slate-500">@ {route.departureTime}</span>
-            {route.urgencyLevel === 'important' && (
-              <span className="text-xs px-1.5 py-0.5 bg-orange-600/20 text-orange-400 rounded">
-                ⚡ Important
-              </span>
-            )}
-            {additionalTravelTime && (
-              <span className="text-xs px-1.5 py-0.5 bg-amber-500/20 text-amber-300 rounded">
-                {additionalTravelTime}
-              </span>
-            )}
-          </div>
-        </div>
-
-        {/* Disruption count */}
-        {disruptionCount > 0 && (
-          <div className="px-2 py-1 bg-red-600/20 text-red-400 rounded-lg text-sm font-medium">
-            {disruptionCount} {disruptionCount === 1 ? 'disruption' : 'disruptions'}
-          </div>
-        )}
-      </div>
+      </Card>
     </Link>
   )
 }
 
-// ============================================
-// CREATE ROUTE
-// ============================================
-
-// Route option type from fetchRouteOptions
-interface RouteOption {
-  uid: string
-  durationInMinutes: number
-  transfers: number
-  stations: Array<{ code: string; name: string }>
-  viaStations: string
-}
-
+// Simplified CreateRoute - focuses on essential flow
 function CreateRoute() {
   const navigate = useNavigate()
   const createRoute = useMutation(api.publicTransport.createRoute)
-  const fetchRouteOptions = useAction(api.publicTransportActions.fetchRouteOptions)
   const stationCount = useQuery(api.publicTransport.getStationCount) ?? 0
-
-  // Step management: 1 = select stations, 2 = select route, 3 = configure details
-  const [step, setStep] = useState(1)
 
   const [name, setName] = useState('')
   const [originCode, setOriginCode] = useState('')
   const [originName, setOriginName] = useState('')
   const [destinationCode, setDestinationCode] = useState('')
   const [destinationName, setDestinationName] = useState('')
-  const [scheduleDays, setScheduleDays] = useState<number[]>([1, 2, 3, 4, 5]) // Mon-Fri
+  const [scheduleDays, setScheduleDays] = useState<number[]>([1, 2, 3, 4, 5])
   const [departureTime, setDepartureTime] = useState('08:00')
   const [urgencyLevel, setUrgencyLevel] = useState<'normal' | 'important'>('normal')
 
-  // Route selection
-  const [routeOptions, setRouteOptions] = useState<RouteOption[]>([])
-  const [selectedRoute, setSelectedRoute] = useState<RouteOption | null>(null)
-  const [loadingRoutes, setLoadingRoutes] = useState(false)
-  const [routeError, setRouteError] = useState<string | null>(null)
-
-  // Station search
   const [originSearch, setOriginSearch] = useState('')
   const [destSearch, setDestSearch] = useState('')
   const originResults = useQuery(
@@ -224,33 +202,6 @@ function CreateRoute() {
     api.publicTransport.searchStations,
     destSearch.length >= 2 ? { query: destSearch } : 'skip'
   ) ?? []
-
-  // Fetch route options when moving to step 2
-  const handleFetchRoutes = async () => {
-    if (!originCode || !destinationCode) return
-
-    setLoadingRoutes(true)
-    setRouteError(null)
-    try {
-      const options = await fetchRouteOptions({
-        originCode,
-        destinationCode,
-      })
-      setRouteOptions(options)
-      if (options.length > 0) {
-        setSelectedRoute(options[0])
-      }
-      setStep(2)
-    } catch (err) {
-      console.error('Failed to fetch routes:', err)
-      setRouteError('Failed to fetch route options. You can continue with just origin/destination.')
-      // Allow continuing without route options
-      setSelectedRoute(null)
-      setStep(2)
-    } finally {
-      setLoadingRoutes(false)
-    }
-  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -265,8 +216,6 @@ function CreateRoute() {
       scheduleDays,
       departureTime,
       urgencyLevel,
-      // Include stations from selected route if available
-      stations: selectedRoute?.stations,
     })
     navigate(`/transport/${id}`)
   }
@@ -278,302 +227,163 @@ function CreateRoute() {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center gap-4">
-        <Link
-          to="/transport"
-          className="p-2 hover:bg-slate-800 rounded-lg transition-colors"
-        >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-          </svg>
-        </Link>
-        <h2 className="text-2xl font-bold">New Route</h2>
-      </div>
-
-      {/* Step indicators */}
-      <div className="flex items-center gap-2">
-        {[1, 2, 3].map((s) => (
-          <div key={s} className="flex items-center">
-            <div
-              className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
-                s < step
-                  ? 'bg-green-600 text-white'
-                  : s === step
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-slate-700 text-slate-400'
-              }`}
-            >
-              {s < step ? '✓' : s}
-            </div>
-            {s < 3 && <div className={`w-8 h-0.5 ${s < step ? 'bg-green-600' : 'bg-slate-700'}`} />}
-          </div>
-        ))}
-        <span className="text-sm text-slate-400 ml-2">
-          {step === 1 ? 'Select Stations' : step === 2 ? 'Choose Route' : 'Configure Details'}
-        </span>
-      </div>
+    <div className="space-y-6 pb-24">
+      <h2 className="text-2xl font-bold">New Route</h2>
 
       {stationCount === 0 && (
-        <div className="p-4 bg-yellow-600/20 border border-yellow-600/50 rounded-lg text-yellow-200 text-sm">
-          ⚠️ No stations cached. Go back and sync stations first for autocomplete to work.
-          You can still enter station codes manually (e.g., GVC, UTR, ASD).
-        </div>
+        <Card className="p-4" style={{ backgroundColor: 'var(--warning-muted)', borderColor: 'var(--warning)' }}>
+          <p className="text-sm" style={{ color: 'var(--warning)' }}>
+            ⚠️ No stations cached. Sync stations from the main screen for autocomplete.
+          </p>
+        </Card>
       )}
 
-      {/* Step 1: Select stations */}
-      {step === 1 && (
-        <div className="space-y-6">
-          {/* Origin station */}
-          <div>
-            <label className="block text-sm font-medium text-slate-400 mb-2">Origin Station</label>
-            <StationPicker
-              value={originCode}
-              onChange={(code, name) => {
-                setOriginCode(code)
-                setOriginName(name || code)
-                setOriginSearch(name || code)
-              }}
-              search={originSearch}
-              onSearchChange={setOriginSearch}
-              results={originResults}
-              placeholder="Search or enter code (e.g., GVC)"
-            />
-          </div>
-
-          {/* Destination station */}
-          <div>
-            <label className="block text-sm font-medium text-slate-400 mb-2">Destination Station</label>
-            <StationPicker
-              value={destinationCode}
-              onChange={(code, name) => {
-                setDestinationCode(code)
-                setDestinationName(name || code)
-                setDestSearch(name || code)
-              }}
-              search={destSearch}
-              onSearchChange={setDestSearch}
-              results={destResults}
-              placeholder="Search or enter code (e.g., UTR)"
-            />
-          </div>
-
-          <button
-            type="button"
-            onClick={handleFetchRoutes}
-            disabled={!originCode || !destinationCode || loadingRoutes}
-            className="w-full px-4 py-3 bg-blue-600 hover:bg-blue-500 disabled:bg-slate-700 disabled:text-slate-500 rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
-          >
-            {loadingRoutes ? (
-              <>
-                <svg className="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                </svg>
-                <span>Finding Routes...</span>
-              </>
-            ) : (
-              'Find Routes →'
-            )}
-          </button>
+      <form onSubmit={handleSubmit} className="space-y-6">
+        {/* Route name */}
+        <div>
+          <label className="block text-sm font-medium mb-2" style={{ color: 'var(--muted-foreground)' }}>
+            Route Name
+          </label>
+          <input
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="e.g., Commute to Utrecht"
+            className="w-full px-4 py-3 rounded-xl border transition-colors"
+            style={{
+              backgroundColor: 'var(--surface)',
+              borderColor: 'var(--border)',
+              color: 'var(--foreground)',
+            }}
+            onFocus={(e) => e.target.style.borderColor = 'var(--primary)'}
+            onBlur={(e) => e.target.style.borderColor = 'var(--border)'}
+          />
         </div>
-      )}
 
-      {/* Step 2: Select route option */}
-      {step === 2 && (
-        <div className="space-y-4">
-          <div className="text-sm text-slate-400">
-            <span className="font-medium text-white">{originName}</span> → <span className="font-medium text-white">{destinationName}</span>
+        {/* Origin */}
+        <div>
+          <label className="block text-sm font-medium mb-2" style={{ color: 'var(--muted-foreground)' }}>
+            From
+          </label>
+          <StationPicker
+            value={originCode}
+            onChange={(code, name) => {
+              setOriginCode(code)
+              setOriginName(name || code)
+              setOriginSearch(name || code)
+            }}
+            search={originSearch}
+            onSearchChange={setOriginSearch}
+            results={originResults}
+            placeholder="Search or enter code (e.g., GVC)"
+          />
+        </div>
+
+        {/* Destination */}
+        <div>
+          <label className="block text-sm font-medium mb-2" style={{ color: 'var(--muted-foreground)' }}>
+            To
+          </label>
+          <StationPicker
+            value={destinationCode}
+            onChange={(code, name) => {
+              setDestinationCode(code)
+              setDestinationName(name || code)
+              setDestSearch(name || code)
+            }}
+            search={destSearch}
+            onSearchChange={setDestSearch}
+            results={destResults}
+            placeholder="Search or enter code (e.g., UTR)"
+          />
+        </div>
+
+        {/* Days */}
+        <div>
+          <label className="block text-sm font-medium mb-2" style={{ color: 'var(--muted-foreground)' }}>
+            Travel Days
+          </label>
+          <div className="flex gap-2">
+            {DAYS.map((day) => (
+              <button
+                key={day.value}
+                type="button"
+                onClick={() => toggleDay(day.value)}
+                className="w-12 h-12 rounded-xl font-medium transition-all"
+                style={{
+                  backgroundColor: scheduleDays.includes(day.value) ? 'var(--primary)' : 'var(--surface)',
+                  color: scheduleDays.includes(day.value) ? 'white' : 'var(--muted-foreground)',
+                  border: `1px solid ${scheduleDays.includes(day.value) ? 'var(--primary)' : 'var(--border)'}`,
+                }}
+              >
+                {day.label}
+              </button>
+            ))}
           </div>
+        </div>
 
-          {routeError && (
-            <div className="p-3 bg-yellow-600/20 border border-yellow-600/50 rounded-lg text-yellow-200 text-sm">
-              {routeError}
-            </div>
-          )}
+        {/* Time */}
+        <div>
+          <label className="block text-sm font-medium mb-2" style={{ color: 'var(--muted-foreground)' }}>
+            Departure Time
+          </label>
+          <input
+            type="time"
+            value={departureTime}
+            onChange={(e) => setDepartureTime(e.target.value)}
+            className="px-4 py-3 rounded-xl border transition-colors"
+            style={{
+              backgroundColor: 'var(--surface)',
+              borderColor: 'var(--border)',
+              color: 'var(--foreground)',
+            }}
+          />
+        </div>
 
-          {routeOptions.length > 0 ? (
-            <div className="space-y-2">
-              <label className="block text-sm font-medium text-slate-400">Select a route (via stations will be monitored for disruptions)</label>
-              {routeOptions.map((route) => (
-                <button
-                  key={route.uid}
-                  type="button"
-                  onClick={() => setSelectedRoute(route)}
-                  className={`w-full p-4 rounded-lg border text-left transition-colors ${
-                    selectedRoute?.uid === route.uid
-                      ? 'bg-blue-600/20 border-blue-500'
-                      : 'bg-slate-800 border-slate-700 hover:border-slate-600'
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="font-medium">
-                        {route.viaStations ? `via ${route.viaStations}` : 'Direct'}
-                      </div>
-                      <div className="text-sm text-slate-400 mt-1">
-                        {route.durationInMinutes} min • {route.transfers} transfer{route.transfers !== 1 ? 's' : ''} • {route.stations.length} stations
-                      </div>
-                    </div>
-                    {selectedRoute?.uid === route.uid && (
-                      <svg className="w-5 h-5 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                      </svg>
-                    )}
-                  </div>
-                  {/* Show all stations in the route */}
-                  <div className="mt-2 text-xs text-slate-500 flex flex-wrap gap-1">
-                    {route.stations.map((s, i) => (
-                      <span key={s.code} className="flex items-center">
-                        {i > 0 && <span className="mx-1">→</span>}
-                        {s.name}
-                      </span>
-                    ))}
-                  </div>
-                </button>
-              ))}
-            </div>
-          ) : (
-            <div className="p-4 bg-slate-800 rounded-lg text-slate-400 text-center">
-              No route options found. The route will be created with just origin and destination.
-            </div>
-          )}
-
-          <div className="flex gap-3">
-            <button
-              type="button"
-              onClick={() => setStep(1)}
-              className="flex-1 px-4 py-3 bg-slate-700 hover:bg-slate-600 rounded-lg font-medium transition-colors"
+        {/* Urgency */}
+        <div>
+          <label className="block text-sm font-medium mb-2" style={{ color: 'var(--muted-foreground)' }}>
+            Urgency Level
+          </label>
+          <div className="grid grid-cols-2 gap-3">
+            <Card
+              className={cn(
+                "p-4 cursor-pointer transition-all",
+                urgencyLevel === 'normal' && "ring-2 ring-[var(--primary)]"
+              )}
+              onClick={() => setUrgencyLevel('normal')}
             >
-              ← Back
-            </button>
-            <button
-              type="button"
-              onClick={() => setStep(3)}
-              className="flex-1 px-4 py-3 bg-blue-600 hover:bg-blue-500 rounded-lg font-medium transition-colors"
-            >
-              Continue →
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Step 3: Configure details */}
-      {step === 3 && (
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Selected route summary */}
-          <div className="p-4 bg-slate-800 rounded-lg">
-            <div className="text-sm text-slate-400 mb-1">Selected Route</div>
-            <div className="font-medium">{originName} → {destinationName}</div>
-            {selectedRoute && (
-              <div className="text-sm text-slate-400 mt-1">
-                {selectedRoute.viaStations ? `via ${selectedRoute.viaStations}` : 'Direct'} • {selectedRoute.stations.length} stations monitored
+              <div className="font-medium">Normal</div>
+              <div className="text-xs mt-1" style={{ color: 'var(--muted-foreground)' }}>
+                Check every 10 min
               </div>
-            )}
-          </div>
-
-          {/* Route name */}
-          <div>
-            <label className="block text-sm font-medium text-slate-400 mb-2">Route Name</label>
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="e.g., Commute to Utrecht"
-              className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg focus:outline-none focus:border-blue-500 transition-colors"
-            />
-          </div>
-
-          {/* Schedule days */}
-          <div>
-            <label className="block text-sm font-medium text-slate-400 mb-2">Travel Days</label>
-            <div className="flex gap-2">
-              {DAYS.map((day) => (
-                <button
-                  key={day.value}
-                  type="button"
-                  onClick={() => toggleDay(day.value)}
-                  className={`w-10 h-10 rounded-lg font-medium transition-colors ${
-                    scheduleDays.includes(day.value)
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
-                  }`}
-                >
-                  {day.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Departure time */}
-          <div>
-            <label className="block text-sm font-medium text-slate-400 mb-2">Departure Time</label>
-            <input
-              type="time"
-              value={departureTime}
-              onChange={(e) => setDepartureTime(e.target.value)}
-              className="px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg focus:outline-none focus:border-blue-500 transition-colors"
-            />
-          </div>
-
-          {/* Urgency level */}
-          <div>
-            <label className="block text-sm font-medium text-slate-400 mb-2">Urgency Level</label>
-            <div className="flex gap-3">
-              <button
-                type="button"
-                onClick={() => setUrgencyLevel('normal')}
-                className={`flex-1 px-4 py-3 rounded-lg border transition-colors ${
-                  urgencyLevel === 'normal'
-                    ? 'bg-blue-600 border-blue-500 text-white'
-                    : 'bg-slate-800 border-slate-700 text-slate-400 hover:bg-slate-700'
-                }`}
-              >
-                <div className="font-medium">Normal</div>
-                <div className="text-xs opacity-75 mt-1">Check every 10 min, 1h before</div>
-              </button>
-              <button
-                type="button"
-                onClick={() => setUrgencyLevel('important')}
-                className={`flex-1 px-4 py-3 rounded-lg border transition-colors ${
-                  urgencyLevel === 'important'
-                    ? 'bg-orange-600 border-orange-500 text-white'
-                    : 'bg-slate-800 border-slate-700 text-slate-400 hover:bg-slate-700'
-                }`}
-              >
-                <div className="font-medium">⚡ Important</div>
-                <div className="text-xs opacity-75 mt-1">Check 2h before, every 5 min near departure</div>
-              </button>
-            </div>
-          </div>
-
-          {/* Navigation */}
-          <div className="flex gap-3">
-            <button
-              type="button"
-              onClick={() => setStep(2)}
-              className="flex-1 px-4 py-3 bg-slate-700 hover:bg-slate-600 rounded-lg font-medium transition-colors"
+            </Card>
+            <Card
+              className={cn(
+                "p-4 cursor-pointer transition-all",
+                urgencyLevel === 'important' && "ring-2 ring-[var(--warning)]"
+              )}
+              onClick={() => setUrgencyLevel('important')}
             >
-              ← Back
-            </button>
-            <button
-              type="submit"
-              disabled={!name.trim() || scheduleDays.length === 0}
-              className="flex-1 px-4 py-3 bg-green-600 hover:bg-green-500 disabled:bg-slate-700 disabled:text-slate-500 rounded-lg font-medium transition-colors"
-            >
-              Create Route ✓
-            </button>
+              <div className="font-medium">⚡ Important</div>
+              <div className="text-xs mt-1" style={{ color: 'var(--muted-foreground)' }}>
+                Check every 5 min
+              </div>
+            </Card>
           </div>
-        </form>
-      )}
+        </div>
+
+        <Button
+          type="submit"
+          disabled={!name.trim() || !originCode || !destinationCode || scheduleDays.length === 0}
+          className="w-full"
+        >
+          Create Route
+        </Button>
+      </form>
     </div>
   )
 }
-
-// ============================================
-// STATION PICKER COMPONENT
-// ============================================
 
 function StationPicker({
   value,
@@ -600,49 +410,65 @@ function StationPicker({
         onChange={(e) => {
           onSearchChange(e.target.value)
           setShowDropdown(true)
-          // If user types a valid code directly, set it
           if (e.target.value.match(/^[A-Z]{2,5}$/)) {
             onChange(e.target.value.toUpperCase())
           }
         }}
-        onFocus={() => setShowDropdown(true)}
-        onBlur={() => setTimeout(() => setShowDropdown(false), 200)}
+
         placeholder={placeholder}
-        className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg focus:outline-none focus:border-blue-500 transition-colors"
+        className="w-full px-4 py-3 rounded-xl border transition-colors"
+        style={{
+          backgroundColor: 'var(--surface)',
+          borderColor: 'var(--border)',
+          color: 'var(--foreground)',
+        }}
+        onFocus={(e) => {
+          e.target.style.borderColor = 'var(--primary)'
+          setShowDropdown(true)
+        }}
+        onBlur={(e) => {
+          e.target.style.borderColor = 'var(--border)'
+          setTimeout(() => setShowDropdown(false), 200)
+        }}
       />
       {value && (
-        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-500 bg-slate-700 px-2 py-0.5 rounded">
+        <span
+          className="absolute right-3 top-1/2 -translate-y-1/2 text-xs px-2 py-0.5 rounded"
+          style={{ backgroundColor: 'var(--surface-hover)', color: 'var(--muted)' }}
+        >
           {value}
         </span>
       )}
       
-      {/* Dropdown */}
       {showDropdown && results.length > 0 && (
-        <ul className="absolute z-10 w-full mt-1 bg-slate-800 border border-slate-700 rounded-lg shadow-lg max-h-60 overflow-auto">
+        <div
+          className="absolute z-10 w-full mt-1 rounded-xl shadow-lg max-h-60 overflow-auto"
+          style={{
+            backgroundColor: 'var(--surface)',
+            border: '1px solid var(--border)',
+          }}
+        >
           {results.map((station) => (
-            <li key={station.code}>
-              <button
-                type="button"
-                onClick={() => {
-                  onChange(station.code, station.nameLong)
-                  setShowDropdown(false)
-                }}
-                className="w-full px-4 py-2 text-left hover:bg-slate-700 transition-colors"
-              >
-                <span className="font-medium">{station.nameLong}</span>
-                <span className="text-slate-500 ml-2 text-sm">({station.code})</span>
-              </button>
-            </li>
+            <button
+              key={station.code}
+              type="button"
+              onClick={() => {
+                onChange(station.code, station.nameLong)
+                setShowDropdown(false)
+              }}
+              className="w-full px-4 py-3 text-left transition-colors hover:bg-[var(--surface-hover)]"
+            >
+              <span className="font-medium">{station.nameLong}</span>
+              <span className="ml-2 text-sm" style={{ color: 'var(--muted)' }}>
+                ({station.code})
+              </span>
+            </button>
           ))}
-        </ul>
+        </div>
       )}
     </div>
   )
 }
-
-// ============================================
-// ROUTE DETAIL
-// ============================================
 
 function RouteDetail() {
   const { routeId } = useParams<{ routeId: string }>()
@@ -667,45 +493,6 @@ function RouteDetail() {
   const checkNow = useAction(api.publicTransportActions.checkRouteNow)
   const [checking, setChecking] = useState(false)
 
-  const travelTimeSummary = useMemo(() => {
-    const formatAdditionalTravelTime = (
-      min?: number | null,
-      max?: number | null
-    ) => {
-      if (min != null && max != null && min !== max) {
-        return `+${min}-${max} min`;
-      }
-      const single = max ?? min;
-      return single != null ? `+${single} min` : null;
-    };
-
-    const candidates = activeDisruptions
-      .map((d) => ({
-        disruption: d,
-        max: d.additionalTravelTimeMax ?? d.additionalTravelTimeMin ?? null,
-      }))
-      .filter(
-        (c) =>
-          c.disruption.additionalTravelTimeShortLabel ||
-          c.disruption.additionalTravelTimeLabel ||
-          c.max !== null
-      )
-      .sort((a, b) => (b.max ?? 0) - (a.max ?? 0));
-
-    const top = candidates[0]?.disruption;
-    if (!top) return null;
-
-    return (
-      top.additionalTravelTimeShortLabel ||
-      top.additionalTravelTimeLabel ||
-      formatAdditionalTravelTime(
-        top.additionalTravelTimeMin ?? null,
-        top.additionalTravelTimeMax ?? null
-      )
-    );
-  }, [activeDisruptions]);
-
-  // Mark as viewed when opening
   useEffect(() => {
     if (routeId) {
       markViewed({ routeId: routeId as Id<'pt_routes'> })
@@ -717,8 +504,6 @@ function RouteDetail() {
     setChecking(true)
     try {
       await checkNow({ routeId: routeId as Id<'pt_routes'> })
-    } catch (error) {
-      console.error('Check failed:', error)
     } finally {
       setChecking(false)
     }
@@ -733,205 +518,202 @@ function RouteDetail() {
 
   if (!route) {
     return (
-      <div className="text-center py-8">
-        <p className="text-slate-500 mb-4">Route not found</p>
-        <Link to="/transport" className="text-blue-400 hover:underline">
-          ← Back to routes
+      <Card className="p-12 text-center">
+        <p style={{ color: 'var(--muted-foreground)' }} className="mb-4">Route not found</p>
+        <Link to="/transport">
+          <Button variant="outline">← Back to routes</Button>
         </Link>
-      </div>
+      </Card>
     )
   }
 
+  const travelTimeSummary = (route as any).additionalTravelTimeSummary || null
   const disruptions = activeTab === 'active' ? activeDisruptions : oldDisruptions
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-24">
       {/* Header */}
-      <div className="flex items-center gap-4">
-        <Link
-          to="/transport"
-          className="p-2 hover:bg-slate-800 rounded-lg transition-colors"
-        >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-          </svg>
-        </Link>
-        <div className="flex-1">
-          <h2 className="text-2xl font-bold">{route.name}</h2>
-          <p className="text-sm text-slate-400">
-            {route.originName} → {route.destinationName}
-          </p>
-        </div>
+      <div>
+        <h2 className="text-2xl font-bold">{route.name}</h2>
+        <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
+          {route.originName} → {route.destinationName}
+        </p>
       </div>
 
-      {/* Route info */}
-      <div className="p-4 bg-slate-800 rounded-lg space-y-3">
+      {/* Route info card */}
+      <Card className="p-4 space-y-3">
         <div className="flex items-center gap-2 flex-wrap">
           <div className="flex gap-0.5">
             {DAYS.map((day) => (
               <span
                 key={day.value}
-                className={`w-6 h-6 text-xs flex items-center justify-center rounded ${
+                className={cn(
+                  "w-6 h-6 text-xs flex items-center justify-center rounded",
                   route.scheduleDays.includes(day.value)
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-slate-700 text-slate-500'
-                }`}
+                    ? "bg-[var(--primary)] text-white"
+                    : "bg-[var(--surface-hover)] opacity-30"
+                )}
               >
                 {day.short}
               </span>
             ))}
           </div>
-          <span className="text-slate-400">@ {route.departureTime}</span>
+          <span style={{ color: 'var(--muted-foreground)' }}>@ {route.departureTime}</span>
           {route.urgencyLevel === 'important' && (
-            <span className="text-xs px-1.5 py-0.5 bg-orange-600/20 text-orange-400 rounded">
+            <span className="text-xs px-1.5 py-0.5 rounded"
+                  style={{ backgroundColor: 'var(--warning-muted)', color: 'var(--warning)' }}>
               ⚡ Important
             </span>
           )}
         </div>
 
-          {travelTimeSummary && (
-            <div className="flex items-center gap-2 text-sm text-amber-300">
-              <span className="px-2 py-0.5 bg-amber-500/20 rounded">
-                {travelTimeSummary}
-              </span>
-              <span className="text-xs text-slate-400">Added time from active disruptions</span>
-            </div>
-          )}
-        
+        {travelTimeSummary && (
+          <div className="flex items-center gap-2">
+            <Clock className="w-4 h-4" style={{ color: 'var(--warning)' }} />
+            <span className="text-sm font-medium" style={{ color: 'var(--warning)' }}>
+              {travelTimeSummary} additional travel time
+            </span>
+          </div>
+        )}
+
         {route.status?.lastCheckedAt && route.status.lastCheckedAt > 0 && (
-          <p className="text-xs text-slate-500">
+          <p className="text-xs" style={{ color: 'var(--muted)' }}>
             Last checked: {new Date(route.status.lastCheckedAt).toLocaleString('nl-NL')}
           </p>
         )}
 
         <div className="flex gap-2">
-          <button
+          <Button
             onClick={handleCheckNow}
             disabled={checking}
-            className="px-3 py-1 text-sm bg-blue-600 hover:bg-blue-500 disabled:opacity-50 rounded transition-colors"
+            variant="outline"
+            size="sm"
           >
-            {checking ? 'Checking...' : '🔄 Check Now'}
-          </button>
-          <button
+            <RefreshCw className={cn("w-4 h-4 mr-2", checking && "animate-spin")} />
+            {checking ? 'Checking...' : 'Check Now'}
+          </Button>
+          <Button
             onClick={handleDelete}
-            className="px-3 py-1 text-sm bg-red-600/20 text-red-400 hover:bg-red-600/30 rounded transition-colors"
+            variant="destructive"
+            size="sm"
           >
-            Delete Route
-          </button>
+            <Trash2 className="w-4 h-4 mr-2" />
+            Delete
+          </Button>
         </div>
-      </div>
+      </Card>
 
       {/* Tabs */}
-      <div className="flex gap-1 p-1 bg-slate-800 rounded-lg">
+      <div className="flex gap-1 p-1 rounded-xl" style={{ backgroundColor: 'var(--surface)' }}>
         <button
           onClick={() => setActiveTab('active')}
-          className={`flex-1 px-4 py-2 rounded-md transition-colors ${
+          className={cn(
+            "flex-1 px-4 py-2 rounded-lg transition-colors font-medium",
             activeTab === 'active'
-              ? 'bg-blue-600 text-white'
-              : 'text-slate-400 hover:text-white'
-          }`}
+              ? "bg-[var(--primary)] text-white"
+              : "hover:bg-[var(--surface-hover)]"
+          )}
+          style={activeTab !== 'active' ? { color: 'var(--muted-foreground)' } : undefined}
         >
           Active ({activeDisruptions.length})
         </button>
         <button
           onClick={() => setActiveTab('old')}
-          className={`flex-1 px-4 py-2 rounded-md transition-colors ${
+          className={cn(
+            "flex-1 px-4 py-2 rounded-lg transition-colors font-medium",
             activeTab === 'old'
-              ? 'bg-slate-600 text-white'
-              : 'text-slate-400 hover:text-white'
-          }`}
+              ? "bg-[var(--surface-active)]"
+              : "hover:bg-[var(--surface-hover)]"
+          )}
+          style={activeTab !== 'old' ? { color: 'var(--muted-foreground)' } : undefined}
         >
-          Old ({oldDisruptions.length})
+          History ({oldDisruptions.length})
         </button>
       </div>
 
       {/* Disruptions list */}
-      <ul className="space-y-3">
+      <div className="space-y-3">
         {disruptions.length === 0 ? (
-          <li className="text-center py-8 text-slate-500">
-            {activeTab === 'active' 
-              ? '✅ No active disruptions' 
-              : 'No old disruptions'}
-          </li>
+          <Card className="p-12 text-center">
+            <p style={{ color: 'var(--muted-foreground)' }}>
+              {activeTab === 'active' ? '✅ No active disruptions' : 'No past disruptions'}
+            </p>
+          </Card>
         ) : (
           disruptions.map((disruption) => (
             <DisruptionCard key={disruption._id} disruption={disruption} />
           ))
         )}
-      </ul>
+      </div>
     </div>
   )
 }
 
-// ============================================
-// DISRUPTION CARD
-// ============================================
-
 function DisruptionCard({ disruption }: { disruption: any }) {
-  const icon = DISRUPTION_ICONS[disruption.type] || '⚠️'
-  const formatAdditionalTravelTime = (
-    min?: number | null,
-    max?: number | null
-  ) => {
-    if (min != null && max != null && min !== max) {
-      return `+${min}-${max} min`;
-    }
-    const single = max ?? min;
-    return single != null ? `+${single} min` : null;
-  }
-
-  const travelTimeText =
-    disruption.additionalTravelTimeShortLabel ||
-    disruption.additionalTravelTimeLabel ||
-    formatAdditionalTravelTime(
-      disruption.additionalTravelTimeMin ?? null,
-      disruption.additionalTravelTimeMax ?? null
-    )
+  const typeColor = DISRUPTION_TYPE_COLORS[disruption.type as keyof typeof DISRUPTION_TYPE_COLORS] || '#EF4444'
 
   return (
-    <li className="p-4 bg-slate-800 rounded-lg border border-slate-700">
+    <Card className="p-4">
       <div className="flex items-start gap-3">
-        <span className="text-2xl">{icon}</span>
-        <div className="flex-1 min-w-0">
+        <div
+          className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+          style={{ backgroundColor: `${typeColor}20` }}
+        >
+          <AlertTriangle className="w-5 h-5" style={{ color: typeColor }} />
+        </div>
+        
+        <div className="flex-1 min-w-0 space-y-2">
           <h4 className="font-semibold">{disruption.title}</h4>
-          <p className="text-sm text-slate-400 mt-1">{disruption.period}</p>
-          <div className="flex flex-wrap gap-2 mt-2">
-            {travelTimeText && (
-              <span className="text-xs px-2 py-0.5 bg-amber-500/20 text-amber-200 rounded">
-                {travelTimeText}
+          <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
+            {disruption.period}
+          </p>
+          
+          <div className="flex flex-wrap gap-2">
+            {disruption.additionalTravelTimeShortLabel && (
+              <span className="text-xs px-2 py-1 rounded"
+                    style={{ backgroundColor: 'var(--warning-muted)', color: 'var(--warning)' }}>
+                {disruption.additionalTravelTimeShortLabel}
               </span>
             )}
             {disruption.causeLabel && (
-              <span className="text-xs px-2 py-0.5 bg-slate-700 text-slate-200 rounded">
-                Cause: {disruption.causeLabel}
+              <span className="text-xs px-2 py-1 rounded"
+                    style={{ backgroundColor: 'var(--surface-hover)', color: 'var(--muted-foreground)' }}>
+                {disruption.causeLabel}
               </span>
             )}
             {disruption.impactValue !== undefined && disruption.impactValue !== null && (
-              <span className="text-xs px-2 py-0.5 bg-red-500/20 text-red-300 rounded">
+              <span className="text-xs px-2 py-1 rounded"
+                    style={{ backgroundColor: 'var(--destructive-muted)', color: 'var(--destructive)' }}>
                 Impact {disruption.impactValue}/5
               </span>
             )}
-            {disruption.alternativeTransportLabel && (
-              <span className="text-xs px-2 py-0.5 bg-green-500/20 text-green-200 rounded">
-                Alt: {disruption.alternativeTransportLabel}
-              </span>
-            )}
           </div>
+
           {disruption.description && (
-            <p className="text-sm text-slate-300 mt-2">{disruption.description}</p>
+            <p className="text-sm">{disruption.description}</p>
           )}
+          
           {disruption.advice && (
-            <p className="text-sm text-blue-400 mt-2">💡 {disruption.advice}</p>
+            <p className="text-sm" style={{ color: 'var(--primary)' }}>
+              💡 {disruption.advice}
+            </p>
           )}
-          <div className="flex flex-wrap gap-1 mt-2">
-            {disruption.affectedStations.map((code: string) => (
-              <span key={code} className="text-xs px-1.5 py-0.5 bg-slate-700 rounded">
-                {code}
-              </span>
-            ))}
-          </div>
+
+          {disruption.affectedStations && disruption.affectedStations.length > 0 && (
+            <div className="flex flex-wrap gap-1">
+              {disruption.affectedStations.map((code: string) => (
+                <span
+                  key={code}
+                  className="text-xs px-1.5 py-0.5 rounded"
+                  style={{ backgroundColor: 'var(--surface-hover)', color: 'var(--muted)' }}
+                >
+                  {code}
+                </span>
+              ))}
+            </div>
+          )}
         </div>
       </div>
-    </li>
+    </Card>
   )
 }

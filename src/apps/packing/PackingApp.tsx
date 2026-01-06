@@ -3,6 +3,10 @@ import { Routes, Route, useNavigate, useParams, Link } from 'react-router-dom'
 import { useQuery, useMutation } from 'convex/react'
 import { api } from '../../../convex/_generated/api'
 import type { Id, Doc } from '../../../convex/_generated/dataModel'
+import { Button } from '@/components/ui/Button'
+import { Card } from '@/components/ui/Card'
+import { Luggage, Trash2, Plus, CheckSquare, Shirt, Droplet, Smartphone, FileText, Package } from 'lucide-react'
+import { cn } from '@/lib/utils'
 
 // Type aliases for readability
 type Trip = Doc<"packing_trips">
@@ -10,12 +14,20 @@ type Item = Doc<"packing_items">
 
 const CATEGORIES = ['clothes', 'toiletries', 'electronics', 'documents', 'other'] as const
 
-const CATEGORY_ICONS: Record<string, string> = {
-  clothes: '👕',
-  toiletries: '🧴',
-  electronics: '📱',
-  documents: '📄',
-  other: '📦',
+const CATEGORY_ICONS = {
+  clothes: Shirt,
+  toiletries: Droplet,
+  electronics: Smartphone,
+  documents: FileText,
+  other: Package,
+}
+
+const CATEGORY_COLORS = {
+  clothes: '#8B5CF6',
+  toiletries: '#22C55E', 
+  electronics: '#F59E0B',
+  documents: '#EF4444',
+  other: '#71717A',
 }
 
 export default function PackingApp() {
@@ -43,7 +55,7 @@ function TripsList() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-24">
       <h2 className="text-2xl font-bold">Packing Lists</h2>
 
       {/* Create trip form */}
@@ -53,53 +65,66 @@ function TripsList() {
           value={newTrip}
           onChange={(e) => setNewTrip(e.target.value)}
           placeholder="New trip name..."
-          className="flex-1 px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg focus:outline-none focus:border-blue-500 transition-colors"
+          className="flex-1 px-4 py-3 rounded-xl border transition-colors"
+          style={{
+            backgroundColor: 'var(--surface)',
+            borderColor: 'var(--border)',
+            color: 'var(--foreground)',
+          }}
+          onFocus={(e) => e.target.style.borderColor = 'var(--primary)'}
+          onBlur={(e) => e.target.style.borderColor = 'var(--border)'}
         />
-        <button
-          type="submit"
-          disabled={!newTrip.trim()}
-          className="px-4 py-2 bg-blue-600 hover:bg-blue-500 disabled:bg-slate-700 disabled:text-slate-500 rounded-lg font-medium transition-colors"
-        >
-          Create
-        </button>
+        <Button type="submit" disabled={!newTrip.trim()}>
+          <Plus className="w-5 h-5" />
+        </Button>
       </form>
 
       {/* Trips list */}
-      <ul className="space-y-2">
+      <div className="space-y-2">
         {trips.length === 0 ? (
-          <li className="text-center py-8 text-slate-500">
-            No trips yet. Create one above!
-          </li>
+          <Card className="p-12 text-center">
+            <div className="flex flex-col items-center gap-3">
+              <div className="w-16 h-16 rounded-2xl flex items-center justify-center"
+                   style={{ backgroundColor: 'var(--primary-muted)' }}>
+                <Luggage className="w-8 h-8" style={{ color: 'var(--primary)' }} />
+              </div>
+              <div>
+                <p className="font-medium">No trips yet</p>
+                <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
+                  Create your first packing list above
+                </p>
+              </div>
+            </div>
+          </Card>
         ) : (
           trips.map((trip) => (
-            <li
+            <Card
               key={trip._id}
-              className="flex items-center gap-3 p-4 bg-slate-800 rounded-lg group"
+              className="p-4 flex items-center gap-3 group transition-all hover:scale-[1.01]"
             >
               <Link
                 to={`/packing/${trip._id}`}
-                className="flex-1 flex items-center gap-3 hover:text-blue-400 transition-colors"
+                className="flex-1 flex items-center gap-3"
               >
-                <span className="text-2xl">🧳</span>
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+                     style={{ backgroundColor: 'var(--primary-muted)' }}>
+                  <Luggage className="w-5 h-5" style={{ color: 'var(--primary)' }} />
+                </div>
                 <span className="font-medium">{trip.name}</span>
               </Link>
               <button
                 onClick={() => deleteTrip({ id: trip._id })}
-                className="opacity-0 group-hover:opacity-100 p-1 text-slate-500 hover:text-red-400 transition-all"
+                className="opacity-0 group-hover:opacity-100 p-2 rounded-lg transition-all hover:bg-[var(--destructive-muted)]"
+                style={{ color: 'var(--muted-foreground)' }}
+                onMouseEnter={(e) => e.currentTarget.style.color = 'var(--destructive)'}
+                onMouseLeave={(e) => e.currentTarget.style.color = 'var(--muted-foreground)'}
               >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                  />
-                </svg>
+                <Trash2 className="w-4 h-4" />
               </button>
-            </li>
+            </Card>
           ))
         )}
-      </ul>
+      </div>
     </div>
   )
 }
@@ -141,33 +166,23 @@ function TripDetail() {
 
   if (!trip) {
     return (
-      <div className="text-center py-8">
-        <p className="text-slate-500 mb-4">Trip not found</p>
-        <Link to="/packing" className="text-blue-400 hover:underline">
-          ← Back to trips
+      <Card className="p-12 text-center">
+        <p style={{ color: 'var(--muted-foreground)' }} className="mb-4">Trip not found</p>
+        <Link to="/packing">
+          <Button variant="outline">← Back to trips</Button>
         </Link>
-      </div>
+      </Card>
     )
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-24">
       {/* Header */}
-      <div className="flex items-center gap-4">
-        <Link
-          to="/packing"
-          className="p-2 hover:bg-slate-800 rounded-lg transition-colors"
-        >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-          </svg>
-        </Link>
-        <div className="flex-1">
-          <h2 className="text-2xl font-bold">{trip.name}</h2>
-          <p className="text-sm text-slate-400">
-            {packedCount}/{items.length} packed
-          </p>
-        </div>
+      <div>
+        <h2 className="text-2xl font-bold">{trip.name}</h2>
+        <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
+          {packedCount} of {items.length} packed
+        </p>
       </div>
 
       {/* Add item form */}
@@ -177,26 +192,34 @@ function TripDetail() {
           value={newItem}
           onChange={(e) => setNewItem(e.target.value)}
           placeholder="Add item..."
-          className="flex-1 min-w-[200px] px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg focus:outline-none focus:border-blue-500 transition-colors"
+          className="flex-1 min-w-[200px] px-4 py-3 rounded-xl border transition-colors"
+          style={{
+            backgroundColor: 'var(--surface)',
+            borderColor: 'var(--border)',
+            color: 'var(--foreground)',
+          }}
+          onFocus={(e) => e.target.style.borderColor = 'var(--primary)'}
+          onBlur={(e) => e.target.style.borderColor = 'var(--border)'}
         />
         <select
           value={category}
           onChange={(e) => setCategory(e.target.value)}
-          className="px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg focus:outline-none focus:border-blue-500 transition-colors"
+          className="px-3 py-3 rounded-xl border transition-colors"
+          style={{
+            backgroundColor: 'var(--surface)',
+            borderColor: 'var(--border)',
+            color: 'var(--foreground)',
+          }}
         >
           {CATEGORIES.map((cat) => (
             <option key={cat} value={cat}>
-              {CATEGORY_ICONS[cat]} {cat}
+              {cat}
             </option>
           ))}
         </select>
-        <button
-          type="submit"
-          disabled={!newItem.trim()}
-          className="px-4 py-2 bg-blue-600 hover:bg-blue-500 disabled:bg-slate-700 disabled:text-slate-500 rounded-lg font-medium transition-colors"
-        >
-          Add
-        </button>
+        <Button type="submit" disabled={!newItem.trim()}>
+          <Plus className="w-5 h-5" />
+        </Button>
       </form>
 
       {/* Items by category */}
@@ -204,65 +227,74 @@ function TripDetail() {
         {CATEGORIES.map((cat) => {
           const catItems = itemsByCategory[cat]
           if (catItems.length === 0) return null
+          const Icon = CATEGORY_ICONS[cat]
+          const color = CATEGORY_COLORS[cat]
 
           return (
             <div key={cat} className="space-y-2">
-              <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wide flex items-center gap-2">
-                <span>{CATEGORY_ICONS[cat]}</span>
-                <span>{cat}</span>
-                <span className="text-xs font-normal">
+              <div className="flex items-center gap-2">
+                <div
+                  className="w-8 h-8 rounded-lg flex items-center justify-center"
+                  style={{ backgroundColor: `${color}20` }}
+                >
+                  <Icon className="w-4 h-4" style={{ color }} />
+                </div>
+                <h3 className="text-sm font-semibold uppercase tracking-wide"
+                    style={{ color: 'var(--muted-foreground)' }}>
+                  {cat}
+                </h3>
+                <span className="text-xs" style={{ color: 'var(--muted)' }}>
                   ({catItems.filter((i) => i.isPacked).length}/{catItems.length})
                 </span>
-              </h3>
-              <ul className="space-y-1">
+              </div>
+              <div className="space-y-1">
                 {catItems.map((item) => (
-                  <li
+                  <Card
                     key={item._id}
-                    className="flex items-center gap-3 p-2 bg-slate-800 rounded-lg group"
+                    className="p-3 flex items-center gap-3 group"
                   >
                     <button
                       onClick={() => toggleItem({ id: item._id })}
-                      className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${
+                      className={cn(
+                        "w-5 h-5 rounded-lg border-2 flex items-center justify-center transition-all shrink-0",
                         item.isPacked
-                          ? 'bg-green-600 border-green-600'
-                          : 'border-slate-500 hover:border-blue-500'
-                      }`}
+                          ? "border-[var(--success)] bg-[var(--success)]"
+                          : "border-[var(--border)] hover:border-[var(--primary)]"
+                      )}
                     >
                       {item.isPacked && (
-                        <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
-                          <path
-                            fillRule="evenodd"
-                            d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                            clipRule="evenodd"
-                          />
-                        </svg>
+                        <CheckSquare className="w-3 h-3 text-white" />
                       )}
                     </button>
                     <span
-                      className={`flex-1 ${
-                        item.isPacked ? 'line-through text-slate-500' : ''
-                      }`}
+                      className={cn(
+                        "flex-1 text-sm transition-all",
+                        item.isPacked && "line-through opacity-50"
+                      )}
                     >
                       {item.text}
                     </span>
                     <button
                       onClick={() => removeItem({ id: item._id })}
-                      className="opacity-0 group-hover:opacity-100 p-1 text-slate-500 hover:text-red-400 transition-all"
+                      className="opacity-0 group-hover:opacity-100 p-1 rounded-lg transition-all"
+                      style={{ color: 'var(--muted-foreground)' }}
+                      onMouseEnter={(e) => e.currentTarget.style.color = 'var(--destructive)'}
+                      onMouseLeave={(e) => e.currentTarget.style.color = 'var(--muted-foreground)'}
                     >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                      </svg>
+                      <Trash2 className="w-3 h-3" />
                     </button>
-                  </li>
+                  </Card>
                 ))}
-              </ul>
+              </div>
             </div>
           )
         })}
         {items.length === 0 && (
-          <p className="text-center py-8 text-slate-500">
-            No items yet. Add some above!
-          </p>
+          <Card className="p-12 text-center">
+            <p style={{ color: 'var(--muted-foreground)' }}>
+              No items yet. Add some above!
+            </p>
+          </Card>
         )}
       </div>
     </div>

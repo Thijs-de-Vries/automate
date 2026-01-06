@@ -1,18 +1,120 @@
-import { Routes, Route, NavLink } from 'react-router-dom'
+import { Routes, Route, NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { SignInButton } from '@clerk/clerk-react'
 import { Authenticated, Unauthenticated, AuthLoading } from 'convex/react'
 import { Suspense, lazy } from 'react'
+import { Home, Grid3X3, Sparkles, ChevronLeft } from 'lucide-react'
 import { OfflineBanner } from './components/OfflineBanner'
 import { UserButtonWithNotifications } from './components/UserButtonWithNotifications'
 import { UpdateProvider } from './contexts/UpdateContext'
 import { UpdateToast } from './components/UpdateToast'
+import { cn } from '@/lib/utils'
+import { AUTOMATIONS } from '@/config/automations'
 
 // Lazy load mini-apps
 const HomePage = lazy(() => import('./apps/home/HomePage'))
+const LibraryPage = lazy(() => import('./apps/library/LibraryPage'))
 const TasksApp = lazy(() => import('./apps/tasks/TasksApp'))
 const PackingApp = lazy(() => import('./apps/packing/PackingApp'))
 const PublicTransportApp = lazy(() => import('./apps/public-transport/PublicTransportApp'))
 const CalisthenicsApp = lazy(() => import('./apps/calisthenics/CalisthenicsApp'))
+
+function LoadingSpinner() {
+  return (
+    <div className="flex items-center justify-center py-16">
+      <div className="relative">
+        <div className="w-8 h-8 border-2 border-[var(--primary-muted)] rounded-full" />
+        <div className="absolute inset-0 w-8 h-8 border-2 border-transparent border-t-[var(--primary)] rounded-full animate-spin" />
+      </div>
+    </div>
+  )
+}
+
+function NavigationHeader() {
+  const location = useLocation()
+  const navigate = useNavigate()
+  
+  // Check if we're in an automation
+  const automation = AUTOMATIONS.find(a => location.pathname.startsWith(a.route))
+  
+  if (!automation) return null
+
+  const AutomationIcon = automation.icon
+
+  return (
+    <div className="border-b border-[var(--border)] px-4 py-4">
+      <div className="max-w-2xl mx-auto flex items-center gap-3">
+        <button
+          onClick={() => navigate(-1)}
+          className={cn(
+            'flex items-center justify-center w-9 h-9 rounded-lg',
+            'bg-[var(--surface)] hover:bg-[var(--surface-hover)] transition-colors',
+            'text-[var(--muted-foreground)] hover:text-[var(--foreground)]',
+            'border border-[var(--border)]'
+          )}
+          title="Go back"
+        >
+          <ChevronLeft className="h-5 w-5" />
+        </button>
+        <div className="flex items-center gap-2.5">
+          <div className={cn(
+            "flex items-center justify-center w-9 h-9 rounded-lg",
+            `bg-[${automation.color}]/10`
+          )}>
+            <AutomationIcon className="h-5 w-5" style={{ color: automation.color }} />
+          </div>
+          <h2 className="font-semibold text-[var(--foreground)]">{automation.name}</h2>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function BottomNav() {
+  const location = useLocation()
+  
+  const navItems = [
+    { to: '/', icon: Home, label: 'Home', exact: true },
+    { to: '/library', icon: Grid3X3, label: 'Library', exact: false },
+  ]
+
+  // Only show on root-level pages
+  const showNav = ['/', '/library'].includes(location.pathname)
+  if (!showNav) return null
+
+  return (
+    <nav className="fixed bottom-0 left-0 right-0 z-50">
+      <div className="mx-4 mb-4">
+        <div
+          className={cn(
+            'max-w-xs mx-auto flex items-center justify-center gap-2 p-2',
+            'bg-[var(--surface)]/80 backdrop-blur-xl',
+            'border border-[var(--border)] rounded-2xl',
+            'shadow-2xl shadow-black/50'
+          )}
+        >
+          {navItems.map(({ to, icon: Icon, label, exact }) => (
+            <NavLink
+              key={to}
+              to={to}
+              end={exact}
+              className={({ isActive }) =>
+                cn(
+                  'flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium text-sm transition-all duration-200',
+                  isActive
+                    ? 'bg-[var(--primary)] text-white shadow-lg shadow-[var(--primary-glow)]'
+                    : 'text-[var(--muted)] hover:text-[var(--foreground)] hover:bg-[var(--surface-hover)]'
+                )
+              }
+            >
+              <Icon className="h-5 w-5" />
+              <span>{label}</span>
+            </NavLink>
+          ))}
+        </div>
+      </div>
+    </nav>
+  )
+}
 
 function App() {
   return (
@@ -24,119 +126,83 @@ function App() {
         {/* PWA Update Toast */}
         <UpdateToast />
 
-      {/* Header */}
-      <header className="bg-slate-800 border-b border-slate-700 px-4 py-3">
-        <div className="max-w-4xl mx-auto flex items-center justify-between">
-          <h1 className="text-xl font-bold text-blue-400">auto-m8</h1>
-          <div className="flex items-center gap-3">
-            <Authenticated>
-              <UserButtonWithNotifications />
-            </Authenticated>
-            <Unauthenticated>
+        {/* Header */}
+        <header className="sticky top-0 z-40 bg-[var(--background)]/80 backdrop-blur-xl border-b border-[var(--border)]">
+          <div className="max-w-2xl mx-auto px-4 py-3 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-br from-[var(--primary)] to-violet-600">
+                <Sparkles className="h-4 w-4 text-white" />
+              </div>
+              <h1 className="text-lg font-bold tracking-tight">
+                <span className="text-[var(--foreground)]">auto</span>
+                <span className="text-[var(--primary)]">-m8</span>
+              </h1>
+            </div>
+            <div className="flex items-center gap-3">
+              <Authenticated>
+                <UserButtonWithNotifications />
+              </Authenticated>
+              <Unauthenticated>
+                <SignInButton mode="modal">
+                  <button className="text-sm px-4 py-2 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-lg font-medium transition-colors shadow-lg shadow-[var(--primary-glow)]">
+                    Sign in
+                  </button>
+                </SignInButton>
+              </Unauthenticated>
+              <AuthLoading>
+                <div className="w-8 h-8 rounded-full bg-[var(--surface)] animate-pulse" />
+              </AuthLoading>
+            </div>
+          </div>
+        </header>
+
+        {/* Automation Header (when in automation) */}
+        <Authenticated>
+          <NavigationHeader />
+        </Authenticated>
+
+        {/* Main content */}
+        <main className="flex-1 max-w-2xl mx-auto w-full px-4 pt-6 pb-24">
+          <AuthLoading>
+            <LoadingSpinner />
+          </AuthLoading>
+          <Authenticated>
+            <Suspense fallback={<LoadingSpinner />}>
+              <Routes>
+                <Route path="/" element={<HomePage />} />
+                <Route path="/library" element={<LibraryPage />} />
+                <Route path="/tasks" element={<TasksApp />} />
+                <Route path="/packing/*" element={<PackingApp />} />
+                <Route path="/transport/*" element={<PublicTransportApp />} />
+                <Route path="/calisthenics/*" element={<CalisthenicsApp />} />
+              </Routes>
+            </Suspense>
+          </Authenticated>
+          <Unauthenticated>
+            <div className="flex flex-col items-center justify-center py-20">
+              <div className="flex items-center justify-center w-20 h-20 rounded-2xl bg-gradient-to-br from-[var(--primary)] to-violet-600 mb-6 shadow-2xl shadow-[var(--primary-glow)]">
+                <Sparkles className="h-10 w-10 text-white" />
+              </div>
+              <h2 className="text-3xl font-bold mb-2">
+                <span className="text-[var(--foreground)]">auto</span>
+                <span className="text-[var(--primary)]">-m8</span>
+              </h2>
+              <p className="text-[var(--muted)] mb-8 text-center max-w-xs">
+                Your personal automation hub for everyday life ✨
+              </p>
               <SignInButton mode="modal">
-                <button className="text-sm px-3 py-1 bg-blue-600 hover:bg-blue-500 rounded transition-colors">
-                  Sign in
+                <button className="px-8 py-3 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl font-semibold transition-all duration-200 shadow-lg shadow-[var(--primary-glow)] active:scale-95">
+                  Get Started
                 </button>
               </SignInButton>
-            </Unauthenticated>
-            <AuthLoading>
-              <div className="text-sm text-slate-400">...</div>
-            </AuthLoading>
-          </div>
-        </div>
-      </header>
+            </div>
+          </Unauthenticated>
+        </main>
 
-      {/* Main content */}
-      <main className="flex-1 max-w-4xl mx-auto w-full p-4">
-        <AuthLoading>
-          <div className="text-center py-16">
-            <div className="text-slate-400">Loading...</div>
-          </div>
-        </AuthLoading>
+        {/* Bottom navigation */}
         <Authenticated>
-          <Suspense fallback={<div className="text-center py-8">Loading app...</div>}>
-            <Routes>
-              <Route path="/" element={<HomePage />} />
-              <Route path="/tasks" element={<TasksApp />} />
-              <Route path="/packing/*" element={<PackingApp />} />
-              <Route path="/transport/*" element={<PublicTransportApp />} />
-              <Route path="/calisthenics/*" element={<CalisthenicsApp />} />
-            </Routes>
-          </Suspense>
+          <BottomNav />
         </Authenticated>
-        <Unauthenticated>
-          <div className="text-center py-16">
-            <h2 className="text-3xl font-bold mb-2">auto-m8</h2>
-            <p className="text-slate-400 mb-8">Your shared mini-apps for everyday life ✨</p>
-            <SignInButton mode="modal">
-              <button className="px-6 py-3 bg-blue-600 hover:bg-blue-500 rounded-xl font-medium transition-colors">
-                Sign In
-              </button>
-            </SignInButton>
-          </div>
-        </Unauthenticated>
-      </main>
-
-      {/* Bottom navigation */}
-      <Authenticated>
-        <nav className="bg-slate-800 border-t border-slate-700 px-4 py-2 sticky bottom-0">
-          <div className="max-w-4xl mx-auto flex justify-around">
-            <NavLink
-              to="/"
-              end
-              className={({ isActive }) =>
-                `flex flex-col items-center py-2 px-4 rounded-lg transition-colors ${
-                  isActive ? 'text-blue-400 bg-slate-700' : 'text-slate-400 hover:text-slate-200'
-                }`
-              }
-            >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-              </svg>
-              <span className="text-xs mt-1">Home</span>
-            </NavLink>
-            <NavLink
-              to="/tasks"
-              className={({ isActive }) =>
-                `flex flex-col items-center py-2 px-4 rounded-lg transition-colors ${
-                  isActive ? 'text-blue-400 bg-slate-700' : 'text-slate-400 hover:text-slate-200'
-                }`
-              }
-            >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-              </svg>
-              <span className="text-xs mt-1">Tasks</span>
-            </NavLink>
-            <NavLink
-              to="/packing"
-              className={({ isActive }) =>
-                `flex flex-col items-center py-2 px-4 rounded-lg transition-colors ${
-                  isActive ? 'text-blue-400 bg-slate-700' : 'text-slate-400 hover:text-slate-200'
-                }`
-              }
-            >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-              </svg>
-              <span className="text-xs mt-1">Packing</span>
-            </NavLink>
-            <NavLink
-              to="/transport"
-              className={({ isActive }) =>
-                `flex flex-col items-center py-2 px-4 rounded-lg transition-colors ${
-                  isActive ? 'text-blue-400 bg-slate-700' : 'text-slate-400 hover:text-slate-200'
-                }`
-              }
-            >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h8m-8 5h8m-4-10v18M5 21h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v14a2 2 0 002 2z" />
-              </svg>
-              <span className="text-xs mt-1">Transport</span>
-            </NavLink>
-          </div>
-        </nav>
-      </Authenticated>
       </div>
     </UpdateProvider>
   )

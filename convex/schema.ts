@@ -2,6 +2,15 @@ import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 
 export default defineSchema({
+  // ============================================
+  // User Preferences - per user settings
+  // ============================================
+  userPreferences: defineTable({
+    clerkId: v.string(), // Clerk user ID
+    favoriteAutomations: v.array(v.string()), // Ordered list of automation IDs
+    updatedAt: v.number(),
+  }).index("by_clerk_id", ["clerkId"]),
+
   // Tasks app tables - shared by all users
   // userId is optional for backwards compatibility with existing data
   tasks: defineTable({

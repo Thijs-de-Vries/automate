@@ -1,6 +1,10 @@
 import { useState } from 'react'
 import { useQuery, useMutation } from 'convex/react'
 import { api } from '../../../convex/_generated/api'
+import { Button } from '@/components/ui/Button'
+import { Card } from '@/components/ui/Card'
+import { Dumbbell, Trash2, Plus, CheckSquare } from 'lucide-react'
+import { cn } from '@/lib/utils'
 
 export default function CalisthenicsApp() {
   const [newExercise, setNewExercise] = useState('')
@@ -21,12 +25,20 @@ export default function CalisthenicsApp() {
   const completedCount = exercises.filter((t) => t.isCompleted).length
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-24">
       <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold">Exercises</h2>
-        <span className="text-sm text-slate-400">
-          {completedCount}/{exercises.length} done
-        </span>
+        <div>
+          <h2 className="text-2xl font-bold">Exercises</h2>
+          <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
+            {completedCount} of {exercises.length} completed
+          </p>
+        </div>
+        <div className="text-right">
+          <div className="text-3xl font-bold" style={{ color: 'var(--primary)' }}>
+            {exercises.reduce((sum, ex) => sum + (ex.isCompleted ? ex.reps : 0), 0)}
+          </div>
+          <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>reps done</p>
+        </div>
       </div>
 
       {/* Add exercise form */}
@@ -35,79 +47,107 @@ export default function CalisthenicsApp() {
           type="text"
           value={newExercise}
           onChange={(e) => setNewExercise(e.target.value)}
-          placeholder="Add the name of the exercise..."
-          className="flex-1 px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg focus:outline-none focus:border-blue-500 transition-colors"
+          placeholder="Exercise name..."
+          className="flex-1 px-4 py-3 rounded-xl border transition-colors"
+          style={{
+            backgroundColor: 'var(--surface)',
+            borderColor: 'var(--border)',
+            color: 'var(--foreground)',
+          }}
+          onFocus={(e) => e.target.style.borderColor = 'var(--primary)'}
+          onBlur={(e) => e.target.style.borderColor = 'var(--border)'}
         />
         <input
           type="number"
           value={newReps}
           onChange={(e) => setNewReps(e.target.value)}
           placeholder="Reps"
-          className="w-24 px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg focus:outline-none focus:border-blue-500 transition-colors"
+          className="w-24 px-4 py-3 rounded-xl border transition-colors"
+          style={{
+            backgroundColor: 'var(--surface)',
+            borderColor: 'var(--border)',
+            color: 'var(--foreground)',
+          }}
+          onFocus={(e) => e.target.style.borderColor = 'var(--primary)'}
+          onBlur={(e) => e.target.style.borderColor = 'var(--border)'}
         />
-        <button
+        <Button
           type="submit"
           disabled={!newExercise.trim() || !newReps.trim()}
-          className="px-4 py-2 bg-blue-600 hover:bg-blue-500 disabled:bg-slate-700 disabled:text-slate-500 rounded-lg font-medium transition-colors"
         >
-          Add
-        </button>
+          <Plus className="w-5 h-5" />
+        </Button>
       </form>
 
       {/* Exercise list */}
-      <ul className="space-y-2">
+      <div className="space-y-2">
         {exercises.length === 0 ? (
-          <li className="text-center py-8 text-slate-500">
-            No exercises yet. Add one above!
-          </li>
+          <Card className="p-12 text-center">
+            <div className="flex flex-col items-center gap-3">
+              <div className="w-16 h-16 rounded-2xl flex items-center justify-center"
+                   style={{ backgroundColor: 'var(--primary-muted)' }}>
+                <Dumbbell className="w-8 h-8" style={{ color: 'var(--primary)' }} />
+              </div>
+              <div>
+                <p className="font-medium">No exercises yet</p>
+                <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
+                  Add your first exercise above to get started
+                </p>
+              </div>
+            </div>
+          </Card>
         ) : (
           exercises.map((exercise) => (
-            <li
+            <Card
               key={exercise._id}
-              className="flex items-center gap-3 p-3 bg-slate-800 rounded-lg group"
+              className="p-4 flex items-center gap-3 group transition-all hover:scale-[1.01]"
             >
               <button
                 onClick={() => toggleExercise({ id: exercise._id })}
-                className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${
+                className={cn(
+                  "w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all shrink-0",
                   exercise.isCompleted
-                    ? 'bg-green-600 border-green-600'
-                    : 'border-slate-500 hover:border-blue-500'
-                }`}
+                    ? "border-[var(--success)] bg-[var(--success)]"
+                    : "border-[var(--border)] hover:border-[var(--primary)]"
+                )}
               >
                 {exercise.isCompleted && (
-                  <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
-                    <path
-                      fillRule="evenodd"
-                      d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
+                  <CheckSquare className="w-4 h-4 text-white" />
                 )}
               </button>
               <span
-                className={`flex-1 ${
-                  exercise.isCompleted ? 'line-through text-slate-500' : ''
-                }`}
+                className={cn(
+                  "flex-1 transition-all",
+                  exercise.isCompleted && "line-through opacity-50"
+                )}
               >
-                {exercise.exercise} - {exercise.reps} reps
+                {exercise.exercise}
+              </span>
+              <span
+                className={cn(
+                  "px-3 py-1 rounded-lg text-sm font-medium",
+                  exercise.isCompleted && "opacity-50"
+                )}
+                style={{
+                  backgroundColor: 'var(--primary-muted)',
+                  color: 'var(--primary)',
+                }}
+              >
+                {exercise.reps} reps
               </span>
               <button
                 onClick={() => removeExercise({ id: exercise._id })}
-                className="opacity-100 group-hover:opacity-100 p-1 text-slate-500 hover:text-red-400 transition-all"
+                className="opacity-0 group-hover:opacity-100 p-2 rounded-lg transition-all hover:bg-[var(--destructive-muted)]"
+                style={{ color: 'var(--muted-foreground)' }}
+                onMouseEnter={(e) => e.currentTarget.style.color = 'var(--destructive)'}
+                onMouseLeave={(e) => e.currentTarget.style.color = 'var(--muted-foreground)'}
               >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                  />
-                </svg>
+                <Trash2 className="w-4 h-4" />
               </button>
-            </li>
+            </Card>
           ))
         )}
-      </ul>
+      </div>
     </div>
   )
 }

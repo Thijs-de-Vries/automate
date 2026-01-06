@@ -1,123 +1,204 @@
-import { Link } from 'react-router-dom'
 import { useUser } from '@clerk/clerk-react'
-import { useQuery } from 'convex/react'
+import { useQuery, useMutation } from 'convex/react'
 import { api } from '../../../convex/_generated/api'
-
-// Coming soon apps - easy to add more here!
-const COMING_SOON_APPS = [
-  { name: 'Clothing Tracker', icon: '👕', description: 'Keep track of what you bought' },
-]
+import { getAutomationById } from '@/config/automations'
+import { AutomationCard } from '@/components/AutomationCard'
+import { Star, ArrowRight } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { cn } from '@/lib/utils'
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core'
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  rectSortingStrategy,
+} from '@dnd-kit/sortable'
 
 export default function HomePage() {
-  const { user } = useUser() // returns current user info from Clerk
+  const { user } = useUser()
+  const favorites = useQuery(api.tasks.getFavorites)
+  const reorderFavorites = useMutation(api.tasks.reorderFavorites)
+  const toggleFavorite = useMutation(api.tasks.toggleFavorite)
+
+  const firstName = user?.firstName || 'there'
+  
+  // Get favorite automations in order
+  const favoriteAutomations = (favorites ?? [])
+    .map(id => getAutomationById(id))
+    .filter(Boolean)
+
+  // Setup drag sensors
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  )
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event
+    if (over && active.id !== over.id) {
+      const oldIndex = favorites?.indexOf(active.id as string) ?? -1
+      const newIndex = favorites?.indexOf(over.id as string) ?? -1
+      if (oldIndex !== -1 && newIndex !== -1) {
+        const newOrder = arrayMove(favorites!, oldIndex, newIndex)
+        reorderFavorites({ favoriteIds: newOrder })
+      }
+    }
+  }
+
+  const handleToggleFavorite = (automationId: string) => {
+    toggleFavorite({ automationId })
+  }
+
+  const getGreeting = () => {
+    const hour = new Date().getHours()
+    if (hour < 12) return 'Good morning'
+    if (hour < 17) return 'Good afternoon'
+    return 'Good evening'
+  }
+
+  return (
+    <div className="space-y-8 py-6">
+      {/* Greeting */}
+      <div>
+        <h2 className="text-2xl font-bold tracking-tight">
+          {getGreeting()}, {firstName}
+        </h2>
+        <p className="text-[var(--muted)] mt-1">
+          {favoriteAutomations.length > 0 
+            ? 'Your pinned automations'
+            : 'Pin automations from the Library to get started'}
+        </p>
+      </div>
+
+      {/* Favorites Grid */}
+      {favoriteAutomations.length > 0 ? (
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleDragEnd}
+        >
+          <SortableContext
+            items={favoriteAutomations.map(a => a!.id)}
+            strategy={rectSortingStrategy}
+          >
+            <div className="grid grid-cols-2 gap-3">
+              {favoriteAutomations.map((automation) => (
+                <AutomationCard
+                  key={automation!.id}
+                  automation={automation!}
+                  isFavorite={true}
+                  onToggleFavorite={() => handleToggleFavorite(automation!.id)}
+                  isDraggable={true}
+                  variant="default"
+                />
+              ))}
+            </div>
+          </SortableContext>
+        </DndContext>
+      ) : (
+        <div
+          className={cn(
+            'flex flex-col items-center justify-center py-16 px-4',
+            'border-2 border-dashed border-[var(--border)] rounded-2xl',
+            'bg-[var(--surface)]/50'
+          )}
+        >
+          <div className="flex items-center justify-center w-16 h-16 rounded-2xl bg-[var(--primary-muted)] mb-4">
+            <Star className="h-8 w-8 text-[var(--primary)]" />
+          </div>
+          <h3 className="font-semibold text-lg mb-1">No favorites yet</h3>
+          <p className="text-[var(--muted)] text-sm text-center mb-4 max-w-xs">
+            Star automations from the Library to pin them here for quick access
+          </p>
+          <Link
+            to="/library"
+            className={cn(
+              'inline-flex items-center gap-2 px-4 py-2 rounded-lg',
+              'bg-[var(--primary)] hover:bg-[var(--primary-hover)]',
+              'text-white font-medium text-sm',
+              'transition-all duration-200 shadow-lg shadow-[var(--primary-glow)]'
+            )}
+          >
+            Browse Library
+            <ArrowRight className="h-4 w-4" />
+          </Link>
+        </div>
+      )}
+
+      {/* Quick Stats */}
+      <QuickStats />
+    </div>
+  )
+}
+
+function QuickStats() {
   const taskStats = useQuery(api.tasks.getStats)
   const packingStats = useQuery(api.packing.getStats)
   const transportStats = useQuery(api.publicTransport.getStats)
 
-  const firstName = user?.firstName || 'there'
+  const stats = [
+    taskStats && {
+      label: 'Tasks',
+      value: `${taskStats.completed}/${taskStats.total}`,
+      subtext: 'completed',
+    },
+    packingStats && {
+      label: 'Trips',
+      value: packingStats.tripCount.toString(),
+      subtext: 'saved',
+    },
+    transportStats && {
+      label: 'Routes',
+      value: transportStats.routeCount.toString(),
+      subtext: transportStats.activeDisruptionCount > 0 
+        ? `${transportStats.activeDisruptionCount} disruptions`
+        : 'monitored',
+      alert: transportStats.activeDisruptionCount > 0,
+    },
+  ].filter(Boolean)
+
+  if (stats.length === 0) return null
 
   return (
-    <div className="space-y-8">
-      {/* Greeting */}
-      <div className="text-center pt-4">
-        <h2 className="text-2xl font-bold">
-          Hey {firstName}! 👋
-        </h2>
-        <p className="text-slate-400 mt-1">What would you like to do?</p>
-      </div>
-
-      {/* Active Apps */}
-      <div className="grid grid-cols-2 gap-4">
-        {/* Tasks Card */}
-        <Link
-          to="/tasks"
-          className="group p-5 bg-slate-800 hover:bg-slate-750 border border-slate-700 hover:border-blue-500/50 rounded-2xl transition-all duration-200 hover:scale-[1.02] hover:shadow-lg hover:shadow-blue-500/10"
-        >
-          <div className="text-3xl mb-3">✅</div>
-          <h3 className="font-semibold text-lg group-hover:text-blue-400 transition-colors">
-            Tasks
-          </h3>
-          <p className="text-sm text-slate-400 mt-1">Shared to-do list</p>
-          {taskStats && (
-            <div className="mt-3 text-xs text-slate-500">
-              <span className="text-green-400">{taskStats.completed}</span>
-              <span className="text-slate-600">/</span>
-              <span>{taskStats.total}</span>
-              <span className="ml-1">done</span>
-            </div>
-          )}
-        </Link>
-
-        {/* Packing Card */}
-        <Link
-          to="/packing"
-          className="group p-5 bg-slate-800 hover:bg-slate-750 border border-slate-700 hover:border-blue-500/50 rounded-2xl transition-all duration-200 hover:scale-[1.02] hover:shadow-lg hover:shadow-blue-500/10"
-        >
-          <div className="text-3xl mb-3">🧳</div>
-          <h3 className="font-semibold text-lg group-hover:text-blue-400 transition-colors">
-            Packing
-          </h3>
-          <p className="text-sm text-slate-400 mt-1">Trip packing lists</p>
-          {packingStats && (
-            <div className="mt-3 text-xs text-slate-500">
-              <span className="text-blue-400">{packingStats.tripCount}</span>
-              <span className="ml-1">{packingStats.tripCount === 1 ? 'trip' : 'trips'}</span>
-            </div>
-          )}
-        </Link>
-
-        {/* Public Transport Card */}
-        <Link
-          to="/transport"
-          className="group p-5 bg-slate-800 hover:bg-slate-750 border border-slate-700 hover:border-blue-500/50 rounded-2xl transition-all duration-200 hover:scale-[1.02] hover:shadow-lg hover:shadow-blue-500/10"
-        >
-          <div className="text-3xl mb-3">🚆</div>
-          <h3 className="font-semibold text-lg group-hover:text-blue-400 transition-colors">
-            Transport
-          </h3>
-          <p className="text-sm text-slate-400 mt-1">Train disruptions</p>
-          {transportStats && (
-            <div className="mt-3 text-xs text-slate-500">
-              <span className="text-blue-400">{transportStats.routeCount}</span>
-              <span className="ml-1">{transportStats.routeCount === 1 ? 'route' : 'routes'}</span>
-              {transportStats.activeDisruptionCount > 0 && (
-                <span className="ml-2 text-red-400">
-                  ⚠️ {transportStats.activeDisruptionCount} disruptions
-                </span>
-              )}
-            </div>
-          )}
-        </Link>
-        {/* Calisthenics Card */}
-        <Link
-          to="/calisthenics"
-          className="group p-5 bg-slate-800 hover:bg-slate-750 border border-slate-700 hover:border-blue-500/50 rounded-2xl transition-all duration-200 hover:scale-[1.02] hover:shadow-lg hover:shadow-blue-500/10"
-        >
-          <div className="text-3xl mb-3">🤸‍♂️</div>
-          <h3 className="font-semibold text-lg group-hover:text-blue-400 transition-colors">
-            Calisthenics
-          </h3>
-          <p className="text-sm text-slate-400 mt-1">Track your workouts and progress</p>
-        </Link>
-      </div>
-
-      {/* Coming Soon */}
-      <div>
-        <h3 className="text-sm font-medium text-slate-500 uppercase tracking-wide mb-3">
-          "Coming Soon" (3-5 buisness days)
-        </h3>
-        <div className="grid grid-cols-3 gap-3">
-          {COMING_SOON_APPS.map((app) => (
+    <div>
+      <h3 className="text-xs font-medium text-[var(--muted)] uppercase tracking-wider mb-3">
+        Overview
+      </h3>
+      <div className="grid grid-cols-3 gap-2">
+        {stats.map((stat) => (
+          <div
+            key={stat!.label}
+            className={cn(
+              'p-3 rounded-xl border',
+              'bg-[var(--surface)] border-[var(--border)]'
+            )}
+          >
+            <div className="text-xs text-[var(--muted)] mb-1">{stat!.label}</div>
+            <div className="text-lg font-semibold">{stat!.value}</div>
             <div
-              key={app.name}
-              className="p-4 bg-slate-800/50 border border-slate-700/50 rounded-xl opacity-60"
+              className={cn(
+                'text-xs',
+                stat!.alert ? 'text-amber-400' : 'text-[var(--muted)]'
+              )}
             >
-              <div className="text-2xl mb-2">{app.icon}</div>
-              <h4 className="font-medium text-sm text-slate-300">{app.name}</h4>
-              <p className="text-xs text-slate-500 mt-0.5 hidden sm:block">{app.description}</p>
+              {stat!.subtext}
             </div>
-          ))}
-        </div>
+          </div>
+        ))}
       </div>
     </div>
   )

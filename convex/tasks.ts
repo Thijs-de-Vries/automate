@@ -25,6 +25,87 @@ async function requireAuth(ctx: any) {
 }
 
 // ============================================
+// FAVORITES: User's pinned automations
+// ============================================
+export const getFavorites = query({
+  args: {},
+  handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      return [];
+    }
+
+    const prefs = await ctx.db
+      .query("userPreferences")
+      .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
+      .unique();
+
+    return prefs?.favoriteAutomations ?? [];
+  },
+});
+
+export const toggleFavorite = mutation({
+  args: {
+    automationId: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const identity = await requireAuth(ctx);
+
+    const prefs = await ctx.db
+      .query("userPreferences")
+      .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
+      .unique();
+
+    if (!prefs) {
+      // Create preferences with this automation as favorite
+      await ctx.db.insert("userPreferences", {
+        clerkId: identity.subject,
+        favoriteAutomations: [args.automationId],
+        updatedAt: Date.now(),
+      });
+    } else {
+      const favorites = prefs.favoriteAutomations;
+      const index = favorites.indexOf(args.automationId);
+
+      if (index === -1) {
+        // Add to favorites
+        await ctx.db.patch(prefs._id, {
+          favoriteAutomations: [...favorites, args.automationId],
+          updatedAt: Date.now(),
+        });
+      } else {
+        // Remove from favorites
+        await ctx.db.patch(prefs._id, {
+          favoriteAutomations: favorites.filter((id) => id !== args.automationId),
+          updatedAt: Date.now(),
+        });
+      }
+    }
+  },
+});
+
+export const reorderFavorites = mutation({
+  args: {
+    favoriteIds: v.array(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const identity = await requireAuth(ctx);
+
+    const prefs = await ctx.db
+      .query("userPreferences")
+      .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
+      .unique();
+
+    if (prefs) {
+      await ctx.db.patch(prefs._id, {
+        favoriteAutomations: args.favoriteIds,
+        updatedAt: Date.now(),
+      });
+    }
+  },
+});
+
+// ============================================
 // GET STATS: For home page cards
 // ============================================
 export const getStats = query({
