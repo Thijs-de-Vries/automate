@@ -92,7 +92,7 @@ export function AutomationCard({
               'p-1.5 rounded-md transition-all duration-200',
               isFavorite
                 ? 'text-amber-400 hover:text-amber-300'
-                : 'text-[var(--muted)] hover:text-[var(--foreground)] opacity-0 group-hover:opacity-100'
+                : 'text-[var(--muted)] hover:text-[var(--foreground)] opacity-100 group-hover:opacity-100'
             )}
           >
             <Star
@@ -120,7 +120,7 @@ export function AutomationCard({
     >
       {isDraggable && (
         <button
-          className="absolute top-2 left-2 touch-none cursor-grab active:cursor-grabbing text-[var(--muted)] hover:text-[var(--foreground)] transition-colors opacity-0 group-hover:opacity-100"
+          className="absolute top-2 left-2 touch-none cursor-grab active:cursor-grabbing text-[var(--muted)] hover:text-[var(--foreground)] transition-colors opacity-100 group-hover:opacity-100"
           {...attributes}
           {...listeners}
         >
