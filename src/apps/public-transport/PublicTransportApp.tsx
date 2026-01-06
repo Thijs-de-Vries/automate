@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { Routes, Route, useNavigate, useParams, Link } from 'react-router-dom'
 import { useQuery, useMutation, useAction } from 'convex/react'
 import { api } from '../../../convex/_generated/api'
@@ -111,6 +111,7 @@ function RoutesList() {
 function RouteCard({ route }: { route: any }) {
   const hasChanges = route.status?.changedSinceLastView
   const disruptionCount = route.activeDisruptionCount || 0
+  const additionalTravelTime = route.additionalTravelTimeSummary
 
   return (
     <Link
@@ -154,6 +155,11 @@ function RouteCard({ route }: { route: any }) {
             {route.urgencyLevel === 'important' && (
               <span className="text-xs px-1.5 py-0.5 bg-orange-600/20 text-orange-400 rounded">
                 ⚡ Important
+              </span>
+            )}
+            {additionalTravelTime && (
+              <span className="text-xs px-1.5 py-0.5 bg-amber-500/20 text-amber-300 rounded">
+                {additionalTravelTime}
               </span>
             )}
           </div>
@@ -661,6 +667,44 @@ function RouteDetail() {
   const checkNow = useAction(api.publicTransportActions.checkRouteNow)
   const [checking, setChecking] = useState(false)
 
+  const travelTimeSummary = useMemo(() => {
+    const formatAdditionalTravelTime = (
+      min?: number | null,
+      max?: number | null
+    ) => {
+      if (min != null && max != null && min !== max) {
+        return `+${min}-${max} min`;
+      }
+      const single = max ?? min;
+      return single != null ? `+${single} min` : null;
+    };
+
+    const candidates = activeDisruptions
+      .map((d) => ({
+        disruption: d,
+        max: d.additionalTravelTimeMax ?? d.additionalTravelTimeMin ?? null,
+      }))
+      .filter(
+        (c) =>
+          c.disruption.additionalTravelTimeShortLabel ||
+          c.disruption.additionalTravelTimeLabel ||
+          c.max !== null
+      )
+      .sort((a, b) => (b.max ?? 0) - (a.max ?? 0));
+
+    const top = candidates[0]?.disruption;
+    if (!top) return null;
+
+    return (
+      top.additionalTravelTimeShortLabel ||
+      top.additionalTravelTimeLabel ||
+      formatAdditionalTravelTime(
+        top.additionalTravelTimeMin ?? null,
+        top.additionalTravelTimeMax ?? null
+      )
+    );
+  }, [activeDisruptions]);
+
   // Mark as viewed when opening
   useEffect(() => {
     if (routeId) {
@@ -744,6 +788,15 @@ function RouteDetail() {
             </span>
           )}
         </div>
+
+          {travelTimeSummary && (
+            <div className="flex items-center gap-2 text-sm text-amber-300">
+              <span className="px-2 py-0.5 bg-amber-500/20 rounded">
+                {travelTimeSummary}
+              </span>
+              <span className="text-xs text-slate-400">Added time from active disruptions</span>
+            </div>
+          )}
         
         {route.status?.lastCheckedAt && route.status.lastCheckedAt > 0 && (
           <p className="text-xs text-slate-500">
@@ -816,6 +869,24 @@ function RouteDetail() {
 
 function DisruptionCard({ disruption }: { disruption: any }) {
   const icon = DISRUPTION_ICONS[disruption.type] || '⚠️'
+  const formatAdditionalTravelTime = (
+    min?: number | null,
+    max?: number | null
+  ) => {
+    if (min != null && max != null && min !== max) {
+      return `+${min}-${max} min`;
+    }
+    const single = max ?? min;
+    return single != null ? `+${single} min` : null;
+  }
+
+  const travelTimeText =
+    disruption.additionalTravelTimeShortLabel ||
+    disruption.additionalTravelTimeLabel ||
+    formatAdditionalTravelTime(
+      disruption.additionalTravelTimeMin ?? null,
+      disruption.additionalTravelTimeMax ?? null
+    )
 
   return (
     <li className="p-4 bg-slate-800 rounded-lg border border-slate-700">
@@ -824,6 +895,28 @@ function DisruptionCard({ disruption }: { disruption: any }) {
         <div className="flex-1 min-w-0">
           <h4 className="font-semibold">{disruption.title}</h4>
           <p className="text-sm text-slate-400 mt-1">{disruption.period}</p>
+          <div className="flex flex-wrap gap-2 mt-2">
+            {travelTimeText && (
+              <span className="text-xs px-2 py-0.5 bg-amber-500/20 text-amber-200 rounded">
+                {travelTimeText}
+              </span>
+            )}
+            {disruption.causeLabel && (
+              <span className="text-xs px-2 py-0.5 bg-slate-700 text-slate-200 rounded">
+                Cause: {disruption.causeLabel}
+              </span>
+            )}
+            {disruption.impactValue !== undefined && disruption.impactValue !== null && (
+              <span className="text-xs px-2 py-0.5 bg-red-500/20 text-red-300 rounded">
+                Impact {disruption.impactValue}/5
+              </span>
+            )}
+            {disruption.alternativeTransportLabel && (
+              <span className="text-xs px-2 py-0.5 bg-green-500/20 text-green-200 rounded">
+                Alt: {disruption.alternativeTransportLabel}
+              </span>
+            )}
+          </div>
           {disruption.description && (
             <p className="text-sm text-slate-300 mt-2">{disruption.description}</p>
           )}

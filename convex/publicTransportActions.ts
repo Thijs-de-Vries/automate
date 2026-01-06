@@ -185,9 +185,22 @@ export const checkRouteDisruptions = internalAction({
       // Extract period text
       const period = extractPeriod(disruption);
 
+      const additionalTravelTime = extractAdditionalTravelTime(disruption);
+      const causeLabel = extractCauseLabel(disruption);
+      const impactValue = extractImpactValue(disruption);
+      const alternativeTransportLabel = extractAlternativeTransportLabel(disruption);
+
+      console.log(
+        `[Disruption fields] id=${disruptionId} title="${disruption.title}" travelTime=` +
+          `${additionalTravelTime.shortLabel || additionalTravelTime.label || 'none'}` +
+          ` min=${additionalTravelTime.min ?? 'n/a'} max=${additionalTravelTime.max ?? 'n/a'}` +
+          ` cause=${causeLabel || 'n/a'} impact=${impactValue ?? 'n/a'}` +
+          ` alt=${alternativeTransportLabel || 'n/a'}`
+      );
+
       // Create content hash for change detection
       const contentHash = simpleHash(
-        `${disruption.type}|${disruption.title}|${period}|${disruption.expectedDuration?.description || ""}`
+        `${disruption.type}|${disruption.title}|${period}|${disruption.expectedDuration?.description || ""}|${additionalTravelTime.label || ""}|${additionalTravelTime.shortLabel || ""}|${additionalTravelTime.min ?? ""}|${additionalTravelTime.max ?? ""}|${causeLabel || ""}|${impactValue ?? ""}|${alternativeTransportLabel || ""}`
       );
 
       await ctx.runMutation(internal.publicTransport.upsertDisruption, {
@@ -198,6 +211,13 @@ export const checkRouteDisruptions = internalAction({
         description: disruption.description || "",
         period,
         advice: disruption.expectedDuration?.description,
+        additionalTravelTimeLabel: additionalTravelTime.label,
+        additionalTravelTimeShortLabel: additionalTravelTime.shortLabel,
+        additionalTravelTimeMin: additionalTravelTime.min,
+        additionalTravelTimeMax: additionalTravelTime.max,
+        causeLabel,
+        impactValue,
+        alternativeTransportLabel,
         affectedStations: disruption.affectedStations,
         contentHash,
       });
@@ -260,6 +280,36 @@ function extractPeriod(disruption: any): string {
   
   return disruption.phase || "Onbekende periode";
 }
+
+  function extractAdditionalTravelTime(disruption: any): {
+    label?: string;
+    shortLabel?: string;
+    min?: number;
+    max?: number;
+  } {
+    const primary = disruption.timespans?.[0]?.additionalTravelTime || disruption.summaryAdditionalTravelTime;
+    if (!primary) return {};
+
+    return {
+      label: primary.label,
+      shortLabel: primary.shortLabel,
+      min: primary.minimumDurationInMinutes,
+      max: primary.maximumDurationInMinutes,
+    };
+  }
+
+  function extractCauseLabel(disruption: any): string | undefined {
+    return disruption.timespans?.[0]?.cause?.label;
+  }
+
+  function extractImpactValue(disruption: any): number | undefined {
+    return disruption.impact?.value;
+  }
+
+  function extractAlternativeTransportLabel(disruption: any): string | undefined {
+    const alt = disruption.timespans?.[0]?.alternativeTransport;
+    return alt?.shortLabel || alt?.label;
+  }
 
 // ============================================
 // MANUAL TRIGGER - Check a route on demand

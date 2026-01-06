@@ -180,6 +180,44 @@ export const listRoutes = query({
           )
           .collect();
 
+        const formatAdditionalTravelTime = (
+          min?: number | null,
+          max?: number | null
+        ) => {
+          if (min != null && max != null && min !== max) {
+            return `+${min}-${max} min`;
+          }
+          const single = max ?? min;
+          return single != null ? `+${single} min` : null;
+        };
+
+        const additionalTravelTimeSummary = (() => {
+          const candidates = activeDisruptions
+            .map((d) => ({
+              disruption: d,
+              max: d.additionalTravelTimeMax ?? d.additionalTravelTimeMin ?? null,
+            }))
+            .filter(
+              (c) =>
+                c.disruption.additionalTravelTimeShortLabel ||
+                c.disruption.additionalTravelTimeLabel ||
+                c.max !== null
+            )
+            .sort((a, b) => (b.max ?? 0) - (a.max ?? 0));
+
+          const top = candidates[0]?.disruption;
+          if (!top) return null;
+
+          return (
+            top.additionalTravelTimeShortLabel ||
+            top.additionalTravelTimeLabel ||
+            formatAdditionalTravelTime(
+              top.additionalTravelTimeMin ?? null,
+              top.additionalTravelTimeMax ?? null
+            )
+          );
+        })();
+
         return {
           ...route,
           status: status ?? {
@@ -188,6 +226,7 @@ export const listRoutes = query({
             changedSinceLastView: false,
           },
           activeDisruptionCount: activeDisruptions.length,
+          additionalTravelTimeSummary,
         };
       })
     );
@@ -531,6 +570,13 @@ export const upsertDisruption = internalMutation({
     description: v.string(),
     period: v.string(),
     advice: v.optional(v.string()),
+    additionalTravelTimeLabel: v.optional(v.string()),
+    additionalTravelTimeShortLabel: v.optional(v.string()),
+    additionalTravelTimeMin: v.optional(v.number()),
+    additionalTravelTimeMax: v.optional(v.number()),
+    causeLabel: v.optional(v.string()),
+    impactValue: v.optional(v.number()),
+    alternativeTransportLabel: v.optional(v.string()),
     affectedStations: v.array(v.string()),
     contentHash: v.string(),
   },

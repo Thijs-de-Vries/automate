@@ -77,6 +77,13 @@ export default defineSchema({
     description: v.string(),
     period: v.string(), // Human-readable period text
     advice: v.optional(v.string()),
+    additionalTravelTimeLabel: v.optional(v.string()),
+    additionalTravelTimeShortLabel: v.optional(v.string()),
+    additionalTravelTimeMin: v.optional(v.number()),
+    additionalTravelTimeMax: v.optional(v.number()),
+    causeLabel: v.optional(v.string()),
+    impactValue: v.optional(v.number()),
+    alternativeTransportLabel: v.optional(v.string()),
     affectedStations: v.array(v.string()), // Station codes affected
     lastSeen: v.number(), // Timestamp when last seen in API
     contentHash: v.string(), // Hash to detect changes
