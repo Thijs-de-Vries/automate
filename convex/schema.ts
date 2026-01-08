@@ -3,30 +3,78 @@ import { v } from "convex/values";
 
 export default defineSchema({
   // ============================================
+  // SPACES - Collaborative groups/households
+  // ============================================
+  
+  // Spaces (called "Groups" in frontend)
+  spaces: defineTable({
+    displayName: v.string(),           // User-customizable name
+    iconName: v.string(),              // Lucide icon name (e.g., "Home", "Users", "Plane")
+    isPersonal: v.boolean(),           // true = user's personal space (cannot be deleted)
+    createdBy: v.string(),             // Clerk user ID of creator
+    createdAt: v.number(),
+  }).index("by_creator", ["createdBy"]),
+
+  // Space members with roles and notification preferences
+  space_members: defineTable({
+    spaceId: v.id("spaces"),
+    userId: v.string(),                // Clerk user ID
+    userName: v.optional(v.string()),  // Display name from Clerk
+    userImageUrl: v.optional(v.string()), // Avatar URL from Clerk
+    role: v.union(
+      v.literal("creator"),            // Original creator - full control
+      v.literal("admin"),              // Can manage members, edit space
+      v.literal("member")              // Can use, cannot manage
+    ),
+    notificationPreferences: v.object({
+      tasks: v.boolean(),              // Opt-in per module
+      packing: v.boolean(),
+      transport: v.boolean(),
+      calisthenics: v.boolean(),
+    }),
+    joinedAt: v.number(),
+  }).index("by_space", ["spaceId"])
+    .index("by_user", ["userId"])
+    .index("by_space_and_user", ["spaceId", "userId"]),
+
+  // Invite codes for joining spaces
+  space_invites: defineTable({
+    spaceId: v.id("spaces"),
+    code: v.string(),                  // Format: join-m8te-XXXXX
+    createdBy: v.string(),             // Clerk user ID
+    createdAt: v.number(),
+    expiresAt: v.optional(v.number()), // Optional expiry
+    maxUses: v.optional(v.number()),   // Optional use limit
+    useCount: v.number(),              // Track uses
+  }).index("by_space", ["spaceId"])
+    .index("by_code", ["code"]),
+
+  // ============================================
   // User Preferences - per user settings
   // ============================================
   userPreferences: defineTable({
-    clerkId: v.string(), // Clerk user ID
+    clerkId: v.string(),               // Clerk user ID
     favoriteAutomations: v.array(v.string()), // Ordered list of automation IDs
+    activeSpaceId: v.optional(v.id("spaces")), // Last active space
     updatedAt: v.number(),
   }).index("by_clerk_id", ["clerkId"]),
 
-  // Tasks app tables - shared by all users
-  // userId is optional for backwards compatibility with existing data
+  // Tasks app tables
   tasks: defineTable({
     text: v.string(),
     isCompleted: v.boolean(),
     createdAt: v.number(),
-    userId: v.optional(v.string()),
-  }),
+    userId: v.optional(v.string()),    // Creator (optional for migration)
+    spaceId: v.optional(v.id("spaces")), // Which space this belongs to (optional for migration)
+  }).index("by_space", ["spaceId"]),
 
-  // Packing app tables - shared by all users
-  // userId is optional for backwards compatibility with existing data
+  // Packing app tables
   packing_trips: defineTable({
     name: v.string(),
     createdAt: v.number(),
-    userId: v.optional(v.string()),
-  }),
+    userId: v.optional(v.string()),    // Creator (optional for migration)
+    spaceId: v.optional(v.id("spaces")), // Which space this belongs to (optional for migration)
+  }).index("by_space", ["spaceId"]),
 
   packing_items: defineTable({
     tripId: v.id("packing_trips"),
@@ -56,18 +104,20 @@ export default defineSchema({
 
   // User-defined routes to monitor for disruptions
   pt_routes: defineTable({
-    name: v.string(), // e.g., "Commute to Utrecht"
-    originCode: v.string(), // Station code, e.g., "GVC"
-    originName: v.string(), // Display name, e.g., "Den Haag Centraal"
+    name: v.string(),                  // e.g., "Commute to Utrecht"
+    originCode: v.string(),            // Station code, e.g., "GVC"
+    originName: v.string(),            // Display name, e.g., "Den Haag Centraal"
     destinationCode: v.string(),
     destinationName: v.string(),
     scheduleDays: v.array(v.number()), // 0-6 (Sun-Sat)
-    departureTime: v.string(), // "HH:MM" format
+    departureTime: v.string(),         // "HH:MM" format
     urgencyLevel: v.union(v.literal("normal"), v.literal("important")),
     createdAt: v.number(),
+    userId: v.optional(v.string()),    // Creator (optional for migration)
+    spaceId: v.optional(v.id("spaces")), // Which space this belongs to (optional for migration)
     // TODO: Add one-off date support in future
     // oneOffDate: v.optional(v.string()), // "YYYY-MM-DD" for single trips
-  }),
+  }).index("by_space", ["spaceId"]),
 
   // Stations on each route (for checking disruptions at all intermediate stops)
   pt_route_stations: defineTable({
@@ -121,12 +171,14 @@ export default defineSchema({
   }).index("by_user", ["userId"])
     .index("by_endpoint", ["endpoint"]),
 
-  // Tasks app tables - per user
+  // Calisthenics app tables - per user
   calisthenics: defineTable({
     exercise: v.string(),
     reps: v.number(),
     isCompleted: v.boolean(),
     createdAt: v.number(),
     userId: v.string(),
-  }),
+    spaceId: v.optional(v.id("spaces")), // Which space this belongs to (optional for migration)
+  }).index("by_user", ["userId"])
+    .index("by_space", ["spaceId"]),
 });

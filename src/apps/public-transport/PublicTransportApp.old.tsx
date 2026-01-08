@@ -43,7 +43,7 @@ export default function PublicTransportApp() {
 // ============================================
 
 function RoutesList() {
-  const routes = useQuery(api.publicTransport.listRoutes) ?? []
+  const routes = useQuery(api.publicTransport.listRoutes, 'skip') ?? []
   const stationCount = useQuery(api.publicTransport.getStationCount) ?? 0
   const syncStations = useAction(api.publicTransportActions.syncAllStations)
   const [syncing, setSyncing] = useState(false)

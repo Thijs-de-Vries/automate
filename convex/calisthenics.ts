@@ -5,7 +5,7 @@
  * - query = read data (like SELECT in SQL)
  * - mutation = write data (like INSERT, UPDATE, DELETE in SQL)
  * 
- * All data is shared between users - no per-user filtering.
+ * Exercises are scoped to spaces (groups) and users.
  * Each function automatically syncs to all connected clients in real-time!
  */
 
@@ -21,6 +21,23 @@ async function requireAuth(ctx: any) {
     throw new Error("You must be logged in");
   }
   return identity;
+}
+
+// ============================================
+// HELPER: Check user has access to space
+// ============================================
+async function requireSpaceAccess(ctx: any, spaceId: any, userId: string) {
+  const membership = await ctx.db
+    .query("space_members")
+    .withIndex("by_space_and_user", (q: any) =>
+      q.eq("spaceId", spaceId).eq("userId", userId)
+    )
+    .first();
+
+  if (!membership) {
+    throw new Error("You don't have access to this space");
+  }
+  return membership;
 }
 
 // ============================================
@@ -43,24 +60,39 @@ async function requireAuth(ctx: any) {
 // });
 
 // ============================================
-// LIST: Get all exercises
+// LIST: Get all exercises for a space
 // ============================================
 export const list = query({
-  args: {},
+  args: {
+    spaceId: v.optional(v.id("spaces")),
+  },
   
-  handler: async (ctx) => {
+  handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) {
       return [];
     }
 
-    const exercises = await ctx.db
-      .query("calisthenics")
-      .filter((q) => q.eq(q.field("userId"), identity.subject))
-      .order("desc")
-      .collect();
+    if (args.spaceId) {
+      // Verify access
+      const membership = await ctx.db
+        .query("space_members")
+        .withIndex("by_space_and_user", (q) =>
+          q.eq("spaceId", args.spaceId!).eq("userId", identity.subject)
+        )
+        .first();
+      if (!membership) return [];
 
-    return exercises;
+      // Get exercises for this space (from all users in space)
+      return await ctx.db
+        .query("calisthenics")
+        .withIndex("by_space", (q) => q.eq("spaceId", args.spaceId))
+        .order("desc")
+        .collect();
+    }
+
+    // No spaceId provided - return empty array
+    return [];
   },
 });
 
@@ -71,10 +103,15 @@ export const create = mutation({
   args: { 
     exercise: v.string(),
     reps: v.number(),
+    spaceId: v.optional(v.id("spaces")),
   },
 
   handler: async (ctx, args) => {
     const identity = await requireAuth(ctx);
+
+    if (args.spaceId) {
+      await requireSpaceAccess(ctx, args.spaceId, identity.subject);
+    }
 
     const exerciseId = await ctx.db.insert("calisthenics", {
       exercise: args.exercise,
@@ -82,6 +119,7 @@ export const create = mutation({
       isCompleted: false,
       createdAt: Date.now(),
       userId: identity.subject,
+      spaceId: args.spaceId,
     });
 
     return exerciseId;
@@ -104,7 +142,10 @@ export const toggle = mutation({
       throw new Error("Exercise not found");
     }
 
-    if (exercise.userId !== identity.subject) {
+    // Verify space access if exercise has a space
+    if (exercise.spaceId) {
+      await requireSpaceAccess(ctx, exercise.spaceId, identity.subject);
+    } else if (exercise.userId !== identity.subject) {
       throw new Error("You can only toggle your own exercises");
     }
 
@@ -114,7 +155,6 @@ export const toggle = mutation({
     await ctx.db.patch(args.id, { 
       isCompleted: nowCompleted 
     });
-
   },
 });
 
@@ -134,7 +174,10 @@ export const remove = mutation({
       throw new Error("Exercise not found");
     }
 
-    if (exercise.userId !== identity.subject) {
+    // Verify space access if exercise has a space
+    if (exercise.spaceId) {
+      await requireSpaceAccess(ctx, exercise.spaceId, identity.subject);
+    } else if (exercise.userId !== identity.subject) {
       throw new Error("You can only delete your own exercises");
     }
 

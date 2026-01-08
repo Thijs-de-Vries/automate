@@ -8,7 +8,7 @@
  * - pt_disruptions: Cached disruptions per route
  * - pt_route_status: Status tracking for badges
  *
- * All data is shared between users - no per-user filtering.
+ * Routes are scoped to spaces (groups). Each user sees routes from their active space.
  */
 
 import { query, mutation, internalMutation, internalQuery } from "./_generated/server";
@@ -26,17 +26,54 @@ async function requireAuth(ctx: any) {
 }
 
 // ============================================
+// HELPER: Check user has access to space
+// ============================================
+async function requireSpaceAccess(ctx: any, spaceId: any, userId: string) {
+  const membership = await ctx.db
+    .query("space_members")
+    .withIndex("by_space_and_user", (q: any) =>
+      q.eq("spaceId", spaceId).eq("userId", userId)
+    )
+    .first();
+
+  if (!membership) {
+    throw new Error("You don't have access to this space");
+  }
+  return membership;
+}
+
+// ============================================
 // GET STATS: For home page cards
 // ============================================
 export const getStats = query({
-  args: {},
-  handler: async (ctx) => {
+  args: {
+    spaceId: v.optional(v.id("spaces")),
+  },
+  handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) {
       return null;
     }
 
-    const routes = await ctx.db.query("pt_routes").collect();
+    let routes;
+    if (args.spaceId) {
+      // Verify access
+      const membership = await ctx.db
+        .query("space_members")
+        .withIndex("by_space_and_user", (q) =>
+          q.eq("spaceId", args.spaceId!).eq("userId", identity.subject)
+        )
+        .first();
+      if (!membership) return null;
+
+      routes = await ctx.db
+        .query("pt_routes")
+        .withIndex("by_space", (q) => q.eq("spaceId", args.spaceId))
+        .collect();
+    } else {
+      // Legacy: get all routes
+      routes = await ctx.db.query("pt_routes").collect();
+    }
     
     // Count active disruptions across all routes
     let activeDisruptionCount = 0;
@@ -150,20 +187,38 @@ export const getStationCount = query({
 // ============================================
 
 /**
- * Get all routes with their status
+ * Get all routes with their status for a space
  */
 export const listRoutes = query({
-  args: {},
-  handler: async (ctx) => {
+  args: {
+    spaceId: v.optional(v.id("spaces")),
+  },
+  handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) {
       return [];
     }
 
-    const routes = await ctx.db
-      .query("pt_routes")
-      .order("desc")
-      .collect();
+    let routes;
+    if (args.spaceId) {
+      // Verify access
+      const membership = await ctx.db
+        .query("space_members")
+        .withIndex("by_space_and_user", (q) =>
+          q.eq("spaceId", args.spaceId!).eq("userId", identity.subject)
+        )
+        .first();
+      if (!membership) return [];
+
+      routes = await ctx.db
+        .query("pt_routes")
+        .withIndex("by_space", (q) => q.eq("spaceId", args.spaceId))
+        .order("desc")
+        .collect();
+    } else {
+      // No spaceId provided - return empty array
+      return [];
+    }
 
     // Join with status and disruption counts
     const routesWithStatus = await Promise.all(
@@ -251,6 +306,17 @@ export const getRoute = query({
     const route = await ctx.db.get(args.routeId);
     if (!route) return null;
 
+    // Verify space access if route has a space
+    if (route.spaceId) {
+      const membership = await ctx.db
+        .query("space_members")
+        .withIndex("by_space_and_user", (q) =>
+          q.eq("spaceId", route.spaceId!).eq("userId", identity.subject)
+        )
+        .first();
+      if (!membership) return null;
+    }
+
     const status = await ctx.db
       .query("pt_route_status")
       .withIndex("by_route", (q) => q.eq("routeId", args.routeId))
@@ -282,6 +348,7 @@ export const createRoute = mutation({
     scheduleDays: v.array(v.number()),
     departureTime: v.string(),
     urgencyLevel: v.union(v.literal("normal"), v.literal("important")),
+    spaceId: v.optional(v.id("spaces")),
     // Optional: pre-computed stations from route selection
     stations: v.optional(v.array(v.object({
       code: v.string(),
@@ -289,7 +356,11 @@ export const createRoute = mutation({
     }))),
   },
   handler: async (ctx, args) => {
-    await requireAuth(ctx);
+    const identity = await requireAuth(ctx);
+
+    if (args.spaceId) {
+      await requireSpaceAccess(ctx, args.spaceId, identity.subject);
+    }
 
     const routeId = await ctx.db.insert("pt_routes", {
       name: args.name,
@@ -301,6 +372,8 @@ export const createRoute = mutation({
       departureTime: args.departureTime,
       urgencyLevel: args.urgencyLevel,
       createdAt: Date.now(),
+      userId: identity.subject,
+      spaceId: args.spaceId,
     });
 
     // If stations were provided (from route selection), use those
@@ -354,11 +427,16 @@ export const updateRoute = mutation({
     urgencyLevel: v.optional(v.union(v.literal("normal"), v.literal("important"))),
   },
   handler: async (ctx, args) => {
-    await requireAuth(ctx);
+    const identity = await requireAuth(ctx);
 
     const route = await ctx.db.get(args.routeId);
     if (!route) {
       throw new Error("Route not found");
+    }
+
+    // Verify space access if route has a space
+    if (route.spaceId) {
+      await requireSpaceAccess(ctx, route.spaceId, identity.subject);
     }
 
     const updates: Record<string, any> = {};
@@ -379,11 +457,16 @@ export const deleteRoute = mutation({
     routeId: v.id("pt_routes"),
   },
   handler: async (ctx, args) => {
-    await requireAuth(ctx);
+    const identity = await requireAuth(ctx);
 
     const route = await ctx.db.get(args.routeId);
     if (!route) {
       throw new Error("Route not found");
+    }
+
+    // Verify space access if route has a space
+    if (route.spaceId) {
+      await requireSpaceAccess(ctx, route.spaceId, identity.subject);
     }
 
     // Delete route stations
@@ -436,6 +519,20 @@ export const getRouteDisruptions = query({
       return [];
     }
 
+    const route = await ctx.db.get(args.routeId);
+    if (!route) return [];
+
+    // Verify space access if route has a space
+    if (route.spaceId) {
+      const membership = await ctx.db
+        .query("space_members")
+        .withIndex("by_space_and_user", (q) =>
+          q.eq("spaceId", route.spaceId!).eq("userId", identity.subject)
+        )
+        .first();
+      if (!membership) return [];
+    }
+
     const disruptions = await ctx.db
       .query("pt_disruptions")
       .withIndex("by_route_active", (q) => 
@@ -456,7 +553,17 @@ export const markRouteViewed = mutation({
     routeId: v.id("pt_routes"),
   },
   handler: async (ctx, args) => {
-    await requireAuth(ctx);
+    const identity = await requireAuth(ctx);
+
+    const route = await ctx.db.get(args.routeId);
+    if (!route) {
+      throw new Error("Route not found");
+    }
+
+    // Verify space access if route has a space
+    if (route.spaceId) {
+      await requireSpaceAccess(ctx, route.spaceId, identity.subject);
+    }
 
     const status = await ctx.db
       .query("pt_route_status")

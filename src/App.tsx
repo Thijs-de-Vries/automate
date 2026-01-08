@@ -5,7 +5,9 @@ import { Suspense, lazy } from 'react'
 import { Home, Grid3X3, Sparkles, ChevronLeft } from 'lucide-react'
 import { OfflineBanner } from './components/OfflineBanner'
 import { UserButtonWithNotifications } from './components/UserButtonWithNotifications'
+import { SpaceSwitcher } from './components/SpaceSwitcher'
 import { UpdateProvider } from './contexts/UpdateContext'
+import { SpaceProvider } from './contexts/SpaceContext'
 import { UpdateToast } from './components/UpdateToast'
 import { cn } from '@/lib/utils'
 import { AUTOMATIONS } from '@/config/automations'
@@ -17,6 +19,12 @@ const TasksApp = lazy(() => import('./apps/tasks/TasksApp'))
 const PackingApp = lazy(() => import('./apps/packing/PackingApp'))
 const PublicTransportApp = lazy(() => import('./apps/public-transport/PublicTransportApp'))
 const CalisthenicsApp = lazy(() => import('./apps/calisthenics/CalisthenicsApp'))
+
+// Groups pages
+const GroupsPage = lazy(() => import('./apps/groups/GroupsPage'))
+const CreateGroupPage = lazy(() => import('./apps/groups/CreateGroupPage'))
+const GroupSettingsPage = lazy(() => import('./apps/groups/GroupSettingsPage'))
+const JoinGroupPage = lazy(() => import('./apps/groups/JoinGroupPage'))
 
 function LoadingSpinner() {
   return (
@@ -119,66 +127,112 @@ function BottomNav() {
 function App() {
   return (
     <UpdateProvider>
-      <div className="min-h-screen flex flex-col">
-        {/* Offline Banner */}
-        <OfflineBanner />
+      <Authenticated>
+        <SpaceProvider>
+          <div className="min-h-screen flex flex-col">
+            {/* Offline Banner */}
+            <OfflineBanner />
 
-        {/* PWA Update Toast */}
-        <UpdateToast />
+            {/* PWA Update Toast */}
+            <UpdateToast />
 
-        {/* Header */}
-        <header className="sticky top-0 z-40 bg-[var(--background)]/80 backdrop-blur-xl border-b border-[var(--border)]">
-          <div className="max-w-2xl mx-auto px-4 py-3 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-br from-[var(--primary)] to-violet-600">
-                <Sparkles className="h-4 w-4 text-white" />
+            {/* Header */}
+            <header className="sticky top-0 z-40 bg-[var(--background)]/80 backdrop-blur-xl border-b border-[var(--border)]">
+              <div className="max-w-2xl mx-auto px-4 py-3 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2">
+                    <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-br from-[var(--primary)] to-violet-600">
+                      <Sparkles className="h-4 w-4 text-white" />
+                    </div>
+                    <h1 className="text-lg font-bold tracking-tight">
+                      <span className="text-[var(--foreground)]">auto</span>
+                      <span className="text-[var(--primary)]">-m8</span>
+                    </h1>
+                  </div>
+                  {/* Space Switcher */}
+                  <SpaceSwitcher />
+                </div>
+                <div className="flex items-center gap-3">
+                  <Authenticated>
+                    <UserButtonWithNotifications />
+                  </Authenticated>
+                  <Unauthenticated>
+                    <SignInButton mode="modal">
+                      <button className="text-sm px-4 py-2 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-lg font-medium transition-colors shadow-lg shadow-[var(--primary-glow)]">
+                        Sign in
+                      </button>
+                    </SignInButton>
+                  </Unauthenticated>
+                  <AuthLoading>
+                    <div className="w-8 h-8 rounded-full bg-[var(--surface)] animate-pulse" />
+                  </AuthLoading>
+                </div>
               </div>
-              <h1 className="text-lg font-bold tracking-tight">
-                <span className="text-[var(--foreground)]">auto</span>
-                <span className="text-[var(--primary)]">-m8</span>
-              </h1>
-            </div>
-            <div className="flex items-center gap-3">
-              <Authenticated>
-                <UserButtonWithNotifications />
-              </Authenticated>
-              <Unauthenticated>
+            </header>
+
+            {/* Automation Header (when in automation) */}
+            <NavigationHeader />
+
+            {/* Main content */}
+            <main className="flex-1 max-w-2xl mx-auto w-full px-4 pt-6 pb-24">
+              <AuthLoading>
+                <LoadingSpinner />
+              </AuthLoading>
+              <Suspense fallback={<LoadingSpinner />}>
+                <Routes>
+                  <Route path="/" element={<HomePage />} />
+                  <Route path="/library" element={<LibraryPage />} />
+                  <Route path="/tasks" element={<TasksApp />} />
+                  <Route path="/packing/*" element={<PackingApp />} />
+                  <Route path="/transport/*" element={<PublicTransportApp />} />
+                  <Route path="/calisthenics/*" element={<CalisthenicsApp />} />
+                  {/* Groups management */}
+                  <Route path="/groups" element={<GroupsPage />} />
+                  <Route path="/groups/new" element={<CreateGroupPage />} />
+                  <Route path="/groups/:groupId" element={<GroupSettingsPage />} />
+                  <Route path="/join/:code" element={<JoinGroupPage />} />
+                </Routes>
+              </Suspense>
+            </main>
+
+            {/* Bottom navigation */}
+            <BottomNav />
+          </div>
+        </SpaceProvider>
+      </Authenticated>
+      <Unauthenticated>
+        <div className="min-h-screen flex flex-col">
+          {/* Offline Banner */}
+          <OfflineBanner />
+
+          {/* PWA Update Toast */}
+          <UpdateToast />
+
+          {/* Header */}
+          <header className="sticky top-0 z-40 bg-[var(--background)]/80 backdrop-blur-xl border-b border-[var(--border)]">
+            <div className="max-w-2xl mx-auto px-4 py-3 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-br from-[var(--primary)] to-violet-600">
+                    <Sparkles className="h-4 w-4 text-white" />
+                  </div>
+                  <h1 className="text-lg font-bold tracking-tight">
+                    <span className="text-[var(--foreground)]">auto</span>
+                    <span className="text-[var(--primary)]">-m8</span>
+                  </h1>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
                 <SignInButton mode="modal">
                   <button className="text-sm px-4 py-2 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-lg font-medium transition-colors shadow-lg shadow-[var(--primary-glow)]">
                     Sign in
                   </button>
                 </SignInButton>
-              </Unauthenticated>
-              <AuthLoading>
-                <div className="w-8 h-8 rounded-full bg-[var(--surface)] animate-pulse" />
-              </AuthLoading>
+              </div>
             </div>
-          </div>
-        </header>
+          </header>
 
-        {/* Automation Header (when in automation) */}
-        <Authenticated>
-          <NavigationHeader />
-        </Authenticated>
-
-        {/* Main content */}
-        <main className="flex-1 max-w-2xl mx-auto w-full px-4 pt-6 pb-24">
-          <AuthLoading>
-            <LoadingSpinner />
-          </AuthLoading>
-          <Authenticated>
-            <Suspense fallback={<LoadingSpinner />}>
-              <Routes>
-                <Route path="/" element={<HomePage />} />
-                <Route path="/library" element={<LibraryPage />} />
-                <Route path="/tasks" element={<TasksApp />} />
-                <Route path="/packing/*" element={<PackingApp />} />
-                <Route path="/transport/*" element={<PublicTransportApp />} />
-                <Route path="/calisthenics/*" element={<CalisthenicsApp />} />
-              </Routes>
-            </Suspense>
-          </Authenticated>
-          <Unauthenticated>
+          <main className="flex-1 max-w-2xl mx-auto w-full px-4 pt-6 pb-24">
             <div className="flex flex-col items-center justify-center py-20">
               <div className="flex items-center justify-center w-20 h-20 rounded-2xl bg-gradient-to-br from-[var(--primary)] to-violet-600 mb-6 shadow-2xl shadow-[var(--primary-glow)]">
                 <Sparkles className="h-10 w-10 text-white" />
@@ -196,14 +250,9 @@ function App() {
                 </button>
               </SignInButton>
             </div>
-          </Unauthenticated>
-        </main>
-
-        {/* Bottom navigation */}
-        <Authenticated>
-          <BottomNav />
-        </Authenticated>
-      </div>
+          </main>
+        </div>
+      </Unauthenticated>
     </UpdateProvider>
   )
 }

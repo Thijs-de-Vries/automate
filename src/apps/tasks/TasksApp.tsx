@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation } from 'convex/react'
 import { api } from '../../../convex/_generated/api'
+import { useActiveSpaceId } from '@/contexts/SpaceContext'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { CheckSquare, Trash2, Plus } from 'lucide-react'
@@ -8,15 +9,23 @@ import { cn } from '@/lib/utils'
 
 export default function TasksApp() {
   const [newTask, setNewTask] = useState('')
-  const tasks = useQuery(api.tasks.list) ?? []
+  const activeSpaceId = useActiveSpaceId()
+  
+  const tasks = useQuery(
+    api.tasks.list,
+    activeSpaceId ? { spaceId: activeSpaceId } : 'skip'
+  ) ?? []
   const createTask = useMutation(api.tasks.create)
   const toggleTask = useMutation(api.tasks.toggle)
   const removeTask = useMutation(api.tasks.remove)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!newTask.trim()) return
-    await createTask({ text: newTask.trim() })
+    if (!newTask.trim() || !activeSpaceId) return
+    await createTask({ 
+      text: newTask.trim(),
+      spaceId: activeSpaceId,
+    })
     setNewTask('')
   }
 

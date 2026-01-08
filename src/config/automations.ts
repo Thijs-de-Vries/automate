@@ -24,6 +24,8 @@ export interface AutomationConfig {
   route: string
   category: AutomationCategory
   color: string // Tailwind color class for accent
+  notificationKey?: 'tasks' | 'packing' | 'transport' | 'calisthenics' // Key for notification preferences
+  notificationDescription?: string // Description for notification settings
 }
 
 export interface CategoryConfig {
@@ -50,6 +52,8 @@ export const AUTOMATIONS: AutomationConfig[] = [
     route: '/tasks',
     category: 'productivity',
     color: 'text-violet-400',
+    notificationKey: 'tasks',
+    notificationDescription: 'When tasks are completed',
   },
   {
     id: 'public-transport',
@@ -59,6 +63,8 @@ export const AUTOMATIONS: AutomationConfig[] = [
     route: '/transport',
     category: 'transport',
     color: 'text-blue-400',
+    notificationKey: 'transport',
+    notificationDescription: 'Train disruption alerts',
   },
   {
     id: 'packing',
@@ -68,6 +74,8 @@ export const AUTOMATIONS: AutomationConfig[] = [
     route: '/packing',
     category: 'travel',
     color: 'text-amber-400',
+    notificationKey: 'packing',
+    notificationDescription: 'Packing list updates',
   },
   {
     id: 'calisthenics',
@@ -77,6 +85,8 @@ export const AUTOMATIONS: AutomationConfig[] = [
     route: '/calisthenics',
     category: 'fitness',
     color: 'text-green-400',
+    notificationKey: 'calisthenics',
+    notificationDescription: 'Workout updates',
   },
 ]
 
@@ -90,4 +100,9 @@ export function getAutomationById(id: string): AutomationConfig | undefined {
 
 export function getCategoryById(id: AutomationCategory): CategoryConfig | undefined {
   return CATEGORIES.find(c => c.id === id)
+}
+
+// Get automations that support notifications (have notificationKey defined)
+export function getNotifiableAutomations(): AutomationConfig[] {
+  return AUTOMATIONS.filter(a => a.notificationKey !== undefined)
 }

@@ -5,7 +5,7 @@
  * - packing_trips: The trips (e.g., "Beach Vacation", "Business Trip")
  * - packing_items: Items in each trip (e.g., "Sunscreen", "Laptop")
  * 
- * All data is shared between users - no per-user filtering.
+ * Trips are scoped to spaces (groups). Each user sees trips from their active space.
  */
 
 import { query, mutation } from "./_generated/server";
@@ -34,17 +34,55 @@ async function requireAuth(ctx: any) {
 }
 
 // ============================================
+// HELPER: Check user has access to space
+// ============================================
+async function requireSpaceAccess(ctx: any, spaceId: any, userId: string) {
+  const membership = await ctx.db
+    .query("space_members")
+    .withIndex("by_space_and_user", (q: any) =>
+      q.eq("spaceId", spaceId).eq("userId", userId)
+    )
+    .first();
+
+  if (!membership) {
+    throw new Error("You don't have access to this space");
+  }
+  return membership;
+}
+
+// ============================================
 // GET STATS: For home page cards
 // ============================================
 export const getStats = query({
-  args: {},
-  handler: async (ctx) => {
+  args: {
+    spaceId: v.optional(v.id("spaces")),
+  },
+  handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) {
       return null;
     }
 
-    const trips = await ctx.db.query("packing_trips").collect();
+    let trips;
+    if (args.spaceId) {
+      // Verify access
+      const membership = await ctx.db
+        .query("space_members")
+        .withIndex("by_space_and_user", (q) =>
+          q.eq("spaceId", args.spaceId!).eq("userId", identity.subject)
+        )
+        .first();
+      if (!membership) return null;
+
+      trips = await ctx.db
+        .query("packing_trips")
+        .withIndex("by_space", (q) => q.eq("spaceId", args.spaceId))
+        .collect();
+    } else {
+      // Legacy: get all trips
+      trips = await ctx.db.query("packing_trips").collect();
+    }
+
     return {
       tripCount: trips.length,
     };
@@ -56,22 +94,37 @@ export const getStats = query({
 // ============================================
 
 /**
- * Get all trips
+ * Get all trips for a space
  */
 export const listTrips = query({
-  args: {},
-  handler: async (ctx) => {
+  args: {
+    spaceId: v.optional(v.id("spaces")),
+  },
+  handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) {
       return [];
     }
 
-    const trips = await ctx.db
-      .query("packing_trips")
-      .order("desc")
-      .collect();
+    if (args.spaceId) {
+      // Verify access
+      const membership = await ctx.db
+        .query("space_members")
+        .withIndex("by_space_and_user", (q) =>
+          q.eq("spaceId", args.spaceId!).eq("userId", identity.subject)
+        )
+        .first();
+      if (!membership) return [];
 
-    return trips;
+      return await ctx.db
+        .query("packing_trips")
+        .withIndex("by_space", (q) => q.eq("spaceId", args.spaceId))
+        .order("desc")
+        .collect();
+    }
+
+    // No spaceId provided - return empty array
+    return [];
   },
 });
 
@@ -81,14 +134,21 @@ export const listTrips = query({
 export const createTrip = mutation({
   args: { 
     name: v.string(),
+    spaceId: v.optional(v.id("spaces")),
   },
 
   handler: async (ctx, args) => {
-    await requireAuth(ctx);
+    const identity = await requireAuth(ctx);
+
+    if (args.spaceId) {
+      await requireSpaceAccess(ctx, args.spaceId, identity.subject);
+    }
 
     const tripId = await ctx.db.insert("packing_trips", {
       name: args.name,
       createdAt: Date.now(),
+      userId: identity.subject,
+      spaceId: args.spaceId,
     });
 
     return tripId;
@@ -104,11 +164,16 @@ export const deleteTrip = mutation({
   },
 
   handler: async (ctx, args) => {
-    await requireAuth(ctx);
+    const identity = await requireAuth(ctx);
 
     const trip = await ctx.db.get(args.id);
     if (!trip) {
       throw new Error("Trip not found");
+    }
+
+    // Verify space access if trip has a space
+    if (trip.spaceId) {
+      await requireSpaceAccess(ctx, trip.spaceId, identity.subject);
     }
 
     // Delete all items in this trip first
@@ -149,6 +214,17 @@ export const listItems = query({
       return [];
     }
 
+    // Verify space access if trip has a space
+    if (trip.spaceId) {
+      const membership = await ctx.db
+        .query("space_members")
+        .withIndex("by_space_and_user", (q) =>
+          q.eq("spaceId", trip.spaceId!).eq("userId", identity.subject)
+        )
+        .first();
+      if (!membership) return [];
+    }
+
     const items = await ctx.db
       .query("packing_items")
       .withIndex("by_trip", (q) => q.eq("tripId", args.tripId))
@@ -169,11 +245,16 @@ export const addItem = mutation({
   },
 
   handler: async (ctx, args) => {
-    await requireAuth(ctx);
+    const identity = await requireAuth(ctx);
 
     const trip = await ctx.db.get(args.tripId);
     if (!trip) {
       throw new Error("Trip not found");
+    }
+
+    // Verify space access if trip has a space
+    if (trip.spaceId) {
+      await requireSpaceAccess(ctx, trip.spaceId, identity.subject);
     }
 
     const itemId = await ctx.db.insert("packing_items", {
@@ -197,11 +278,21 @@ export const toggleItem = mutation({
   },
 
   handler: async (ctx, args) => {
-    await requireAuth(ctx);
+    const identity = await requireAuth(ctx);
 
     const item = await ctx.db.get(args.id);
     if (!item) {
       throw new Error("Item not found");
+    }
+
+    const trip = await ctx.db.get(item.tripId);
+    if (!trip) {
+      throw new Error("Trip not found");
+    }
+
+    // Verify space access if trip has a space
+    if (trip.spaceId) {
+      await requireSpaceAccess(ctx, trip.spaceId, identity.subject);
     }
 
     await ctx.db.patch(args.id, { 
@@ -219,11 +310,21 @@ export const removeItem = mutation({
   },
 
   handler: async (ctx, args) => {
-    await requireAuth(ctx);
+    const identity = await requireAuth(ctx);
 
     const item = await ctx.db.get(args.id);
     if (!item) {
       throw new Error("Item not found");
+    }
+
+    const trip = await ctx.db.get(item.tripId);
+    if (!trip) {
+      throw new Error("Trip not found");
+    }
+
+    // Verify space access if trip has a space
+    if (trip.spaceId) {
+      await requireSpaceAccess(ctx, trip.spaceId, identity.subject);
     }
 
     await ctx.db.delete(args.id);

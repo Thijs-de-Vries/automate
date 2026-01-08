@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Routes, Route, useNavigate, useParams, Link } from 'react-router-dom'
 import { useQuery, useMutation } from 'convex/react'
 import { api } from '../../../convex/_generated/api'
+import { useActiveSpaceId } from '@/contexts/SpaceContext'
 import type { Id, Doc } from '../../../convex/_generated/dataModel'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
@@ -41,15 +42,23 @@ export default function PackingApp() {
 
 function TripsList() {
   const [newTrip, setNewTrip] = useState('')
-  const trips: Trip[] = useQuery(api.packing.listTrips) ?? []
+  const activeSpaceId = useActiveSpaceId()
+  
+  const trips: Trip[] = useQuery(
+    api.packing.listTrips,
+    activeSpaceId ? { spaceId: activeSpaceId } : 'skip'
+  ) ?? []
   const createTrip = useMutation(api.packing.createTrip)
   const deleteTrip = useMutation(api.packing.deleteTrip)
   const navigate = useNavigate()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!newTrip.trim()) return
-    const id = await createTrip({ name: newTrip.trim() })
+    if (!newTrip.trim() || !activeSpaceId) return
+    const id = await createTrip({ 
+      name: newTrip.trim(),
+      spaceId: activeSpaceId,
+    })
     setNewTrip('')
     navigate(`/packing/${id}`)
   }
@@ -133,8 +142,12 @@ function TripDetail() {
   const { tripId } = useParams<{ tripId: string }>()
   const [newItem, setNewItem] = useState('')
   const [category, setCategory] = useState<string>('other')
+  const activeSpaceId = useActiveSpaceId()
   
-  const trips: Trip[] = useQuery(api.packing.listTrips) ?? []
+  const trips: Trip[] = useQuery(
+    api.packing.listTrips,
+    activeSpaceId ? { spaceId: activeSpaceId } : 'skip'
+  ) ?? []
   const items: Item[] = useQuery(
     api.packing.listItems,
     tripId ? { tripId: tripId as Id<'packing_trips'> } : 'skip'

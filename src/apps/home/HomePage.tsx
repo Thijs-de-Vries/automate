@@ -1,6 +1,7 @@
 import { useUser } from '@clerk/clerk-react'
 import { useQuery, useMutation } from 'convex/react'
 import { api } from '../../../convex/_generated/api'
+import { useActiveSpaceId } from '@/contexts/SpaceContext'
 import { getAutomationById } from '@/config/automations'
 import { AutomationCard } from '@/components/AutomationCard'
 import { Star, ArrowRight } from 'lucide-react'
@@ -146,9 +147,20 @@ export default function HomePage() {
 }
 
 function QuickStats() {
-  const taskStats = useQuery(api.tasks.getStats)
-  const packingStats = useQuery(api.packing.getStats)
-  const transportStats = useQuery(api.publicTransport.getStats)
+  const activeSpaceId = useActiveSpaceId()
+  
+  const taskStats = useQuery(
+    api.tasks.getStats,
+    activeSpaceId ? { spaceId: activeSpaceId } : 'skip'
+  )
+  const packingStats = useQuery(
+    api.packing.getStats,
+    activeSpaceId ? { spaceId: activeSpaceId } : 'skip'
+  )
+  const transportStats = useQuery(
+    api.publicTransport.getStats,
+    activeSpaceId ? { spaceId: activeSpaceId } : 'skip'
+  )
 
   const stats = [
     taskStats && {

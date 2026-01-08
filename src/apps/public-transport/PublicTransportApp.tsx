@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { Train, Plus, RefreshCw, Trash2, AlertTriangle, Clock } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useActiveSpaceId } from '@/contexts/SpaceContext'
 
 const DAYS = [
   { value: 0, label: 'Sun', short: 'S' },
@@ -35,7 +36,11 @@ export default function PublicTransportApp() {
 }
 
 function RoutesList() {
-  const routes = useQuery(api.publicTransport.listRoutes) ?? []
+  const activeSpaceId = useActiveSpaceId()
+  const routes = useQuery(
+    api.publicTransport.listRoutes,
+    activeSpaceId ? { spaceId: activeSpaceId } : 'skip'
+  ) ?? []
   const stationCount = useQuery(api.publicTransport.getStationCount) ?? 0
   const syncStations = useAction(api.publicTransportActions.syncAllStations)
   const [syncing, setSyncing] = useState(false)
@@ -180,6 +185,7 @@ function RouteCard({ route }: { route: any }) {
 // Simplified CreateRoute - focuses on essential flow
 function CreateRoute() {
   const navigate = useNavigate()
+  const activeSpaceId = useActiveSpaceId()
   const createRoute = useMutation(api.publicTransport.createRoute)
   const stationCount = useQuery(api.publicTransport.getStationCount) ?? 0
 
@@ -205,7 +211,7 @@ function CreateRoute() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!name.trim() || !originCode || !destinationCode || scheduleDays.length === 0) return
+    if (!name.trim() || !originCode || !destinationCode || scheduleDays.length === 0 || !activeSpaceId) return
 
     const id = await createRoute({
       name: name.trim(),
@@ -216,6 +222,7 @@ function CreateRoute() {
       scheduleDays,
       departureTime,
       urgencyLevel,
+      spaceId: activeSpaceId,
     })
     navigate(`/transport/${id}`)
   }

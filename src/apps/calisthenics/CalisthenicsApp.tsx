@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation } from 'convex/react'
 import { api } from '../../../convex/_generated/api'
+import { useActiveSpaceId } from '@/contexts/SpaceContext'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { Dumbbell, Trash2, Plus, CheckSquare } from 'lucide-react'
@@ -9,15 +10,24 @@ import { cn } from '@/lib/utils'
 export default function CalisthenicsApp() {
   const [newExercise, setNewExercise] = useState('')
   const [newReps, setNewReps] = useState('')
-  const exercises = useQuery(api.calisthenics.list) ?? []
+  const activeSpaceId = useActiveSpaceId()
+  
+  const exercises = useQuery(
+    api.calisthenics.list,
+    activeSpaceId ? { spaceId: activeSpaceId } : 'skip'
+  ) ?? []
   const createExercise = useMutation(api.calisthenics.create)
   const toggleExercise = useMutation(api.calisthenics.toggle)
   const removeExercise = useMutation(api.calisthenics.remove)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!newExercise.trim()) return
-    await createExercise({ exercise: newExercise.trim(), reps: Number(newReps) })
+    if (!newExercise.trim() || !activeSpaceId) return
+    await createExercise({ 
+      exercise: newExercise.trim(), 
+      reps: Number(newReps),
+      spaceId: activeSpaceId,
+    })
     setNewExercise('')
     setNewReps('')
   }
