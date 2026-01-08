@@ -5,9 +5,19 @@ import { api } from '../../../convex/_generated/api'
 import type { Id } from '../../../convex/_generated/dataModel'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
-import { Train, Plus, RefreshCw, Trash2, AlertTriangle, Clock } from 'lucide-react'
+import { Collapsible, CollapsibleContent } from '@/components/ui/collapsible'
+import { Train, Plus, RefreshCw, Trash2, AlertTriangle, Clock, ChevronDown } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useActiveSpaceId } from '@/contexts/SpaceContext'
+
+// Route option type from fetchRouteOptions
+interface RouteOption {
+  uid: string
+  durationInMinutes: number
+  transfers: number
+  stations: Array<{ code: string; name: string }>
+  viaStations: string
+}
 
 const DAYS = [
   { value: 0, label: 'Sun', short: 'S' },
@@ -182,11 +192,13 @@ function RouteCard({ route }: { route: any }) {
   )
 }
 
-// Simplified CreateRoute - focuses on essential flow
+// Redesigned CreateRoute with auto-fetching and route selection
 function CreateRoute() {
   const navigate = useNavigate()
   const activeSpaceId = useActiveSpaceId()
   const createRoute = useMutation(api.publicTransport.createRoute)
+  const fetchRouteOptions = useAction(api.publicTransportActions.fetchRouteOptions)
+  const checkRouteNow = useAction(api.publicTransportActions.checkRouteNow)
   const stationCount = useQuery(api.publicTransport.getStationCount) ?? 0
 
   const [name, setName] = useState('')
@@ -198,6 +210,13 @@ function CreateRoute() {
   const [departureTime, setDepartureTime] = useState('08:00')
   const [urgencyLevel, setUrgencyLevel] = useState<'normal' | 'important'>('normal')
 
+  // Route selection state
+  const [routeOptions, setRouteOptions] = useState<RouteOption[]>([])
+  const [selectedRoute, setSelectedRoute] = useState<RouteOption | null>(null)
+  const [loadingRoutes, setLoadingRoutes] = useState(false)
+  const [routeError, setRouteError] = useState<string | null>(null)
+  const [showAlternatives, setShowAlternatives] = useState(false)
+
   const [originSearch, setOriginSearch] = useState('')
   const [destSearch, setDestSearch] = useState('')
   const originResults = useQuery(
@@ -208,6 +227,49 @@ function CreateRoute() {
     api.publicTransport.searchStations,
     destSearch.length >= 2 ? { query: destSearch } : 'skip'
   ) ?? []
+
+  // Validate station codes (must be 2-5 uppercase letters)
+  const isValidStationCode = (code: string) => /^[A-Z]{2,5}$/.test(code)
+
+  // Auto-fetch routes when both valid stations are selected
+  useEffect(() => {
+    const fetchRoutes = async () => {
+      // Reset state if codes are missing or invalid
+      if (!originCode || !destinationCode || !isValidStationCode(originCode) || !isValidStationCode(destinationCode)) {
+        setRouteOptions([])
+        setSelectedRoute(null)
+        setRouteError(null)
+        return
+      }
+
+      setLoadingRoutes(true)
+      setRouteError(null)
+      try {
+        const options = await fetchRouteOptions({
+          originCode,
+          destinationCode,
+        })
+        
+        if (options.length === 0) {
+          setRouteError("NS hasn't returned any routes for this journey. If you believe this is incorrect, please contact me (Thijs).")
+          setRouteOptions([])
+          setSelectedRoute(null)
+        } else {
+          setRouteOptions(options)
+          setSelectedRoute(options[0]) // Auto-select first route
+        }
+      } catch (err) {
+        console.error('Failed to fetch routes:', err)
+        setRouteError("Failed to fetch routes from NS API. If this persists, please contact me (Thijs).")
+        setRouteOptions([])
+        setSelectedRoute(null)
+      } finally {
+        setLoadingRoutes(false)
+      }
+    }
+
+    fetchRoutes()
+  }, [originCode, destinationCode, fetchRouteOptions])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -223,7 +285,18 @@ function CreateRoute() {
       departureTime,
       urgencyLevel,
       spaceId: activeSpaceId,
+      // Pass the selected route's stations array
+      stations: selectedRoute?.stations,
     })
+    
+    // Check for disruptions immediately after creation
+    try {
+      await checkRouteNow({ routeId: id })
+    } catch (error) {
+      console.error('Failed to check route after creation:', error)
+      // Don't block navigation if check fails
+    }
+    
     navigate(`/transport/${id}`)
   }
 
@@ -304,6 +377,127 @@ function CreateRoute() {
             placeholder="Search or enter code (e.g., UTR)"
           />
         </div>
+
+        {/* Route loading/error/selection */}
+        {originCode && destinationCode && (
+          <div>
+            <label className="block text-sm font-medium mb-2" style={{ color: 'var(--muted-foreground)' }}>
+              Route
+            </label>
+            
+            {loadingRoutes ? (
+              <Card className="p-4 flex items-center gap-3">
+                <RefreshCw className="w-5 h-5 animate-spin" style={{ color: 'var(--primary)' }} />
+                <span className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
+                  Finding routes from NS...
+                </span>
+              </Card>
+            ) : routeError ? (
+              <Card className="p-4" style={{ backgroundColor: 'var(--destructive-muted)', borderColor: 'var(--destructive)' }}>
+                <div className="flex items-start gap-3">
+                  <AlertTriangle className="w-5 h-5 shrink-0" style={{ color: 'var(--destructive)' }} />
+                  <div className="flex-1">
+                    <p className="text-sm" style={{ color: 'var(--destructive)' }}>
+                      {routeError}
+                    </p>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="mt-3"
+                      onClick={() => {
+                        // Trigger re-fetch by clearing and resetting codes
+                        const orig = originCode
+                        const dest = destinationCode
+                        setOriginCode('')
+                        setDestinationCode('')
+                        setTimeout(() => {
+                          setOriginCode(orig)
+                          setDestinationCode(dest)
+                        }, 10)
+                      }}
+                    >
+                      <RefreshCw className="w-4 h-4 mr-2" />
+                      Try Again
+                    </Button>
+                  </div>
+                </div>
+              </Card>
+            ) : selectedRoute ? (
+              <div className="space-y-3">
+                {/* Selected route card */}
+                <Card className="p-4" style={{ borderColor: 'var(--primary)' }}>
+                  <div className="flex items-start gap-3">
+                    <div className="w-10 h-10 rounded-xl flex items-center justify-center"
+                         style={{ backgroundColor: 'var(--primary-muted)' }}>
+                      <Train className="w-5 h-5" style={{ color: 'var(--primary)' }} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium">
+                        {selectedRoute.viaStations ? `via ${selectedRoute.viaStations}` : 'Direct'}
+                      </div>
+                      <div className="text-sm mt-1" style={{ color: 'var(--muted-foreground)' }}>
+                        {selectedRoute.durationInMinutes} min • {selectedRoute.transfers} transfer{selectedRoute.transfers !== 1 ? 's' : ''}
+                      </div>
+                      <div className="text-xs mt-2 px-2 py-1 rounded inline-block"
+                           style={{ backgroundColor: 'var(--primary-muted)', color: 'var(--primary)' }}>
+                        {selectedRoute.stations.length} stations monitored for disruptions
+                      </div>
+                    </div>
+                  </div>
+                </Card>
+
+                {/* Alternative routes collapsible */}
+                {routeOptions.length > 1 && (
+                  <Collapsible open={showAlternatives} onOpenChange={setShowAlternatives}>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full justify-between"
+                      onClick={() => setShowAlternatives(!showAlternatives)}
+                    >
+                      <span className="flex items-center gap-2">
+                        <Train className="w-4 h-4" />
+                        {showAlternatives ? 'Hide' : 'Show'} {routeOptions.length - 1} alternative route{routeOptions.length - 1 !== 1 ? 's' : ''}
+                      </span>
+                      <ChevronDown className={cn(
+                        "h-4 w-4 shrink-0 transition-transform duration-200",
+                        showAlternatives && "rotate-180"
+                      )} />
+                    </Button>
+                    <CollapsibleContent className="space-y-2 pt-2 px-1 overflow-visible">
+                      {routeOptions.slice(1).map((route) => (
+                        <Card
+                          key={route.uid}
+                          className={cn(
+                            "p-3 cursor-pointer transition-all hover:scale-[1.005]",
+                            selectedRoute.uid === route.uid && "ring-2 ring-[var(--primary)]"
+                          )}
+                          onClick={() => setSelectedRoute(route)}
+                        >
+                          <div className="flex items-start gap-3">
+                            <div className="w-10 h-10 rounded-xl flex items-center justify-center"
+                                 style={{ backgroundColor: 'var(--surface-hover)' }}>
+                              <Train className="w-5 h-5" style={{ color: 'var(--muted-foreground)' }} />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="font-medium">
+                                {route.viaStations ? `via ${route.viaStations}` : 'Direct'}
+                              </div>
+                              <div className="text-sm mt-1" style={{ color: 'var(--muted-foreground)' }}>
+                                {route.durationInMinutes} min • {route.transfers} transfer{route.transfers !== 1 ? 's' : ''} • {route.stations.length} stations
+                              </div>
+                            </div>
+                          </div>
+                        </Card>
+                      ))}
+                    </CollapsibleContent>
+                  </Collapsible>
+                )}
+              </div>
+            ) : null}
+          </div>
+        )}
 
         {/* Days */}
         <div>
