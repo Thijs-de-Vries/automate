@@ -9,7 +9,7 @@ import { api } from '../../../convex/_generated/api'
 import { cn } from '@/lib/utils'
 import { ArrowLeft, Check, Home } from 'lucide-react'
 import * as LucideIcons from 'lucide-react'
-import { SPACE_ICONS } from '../../../convex/spaces'
+import { SPACE_ICONS } from '../../../convex/constants'
 
 // Get icon component by name
 function getIconComponent(iconName: string) {

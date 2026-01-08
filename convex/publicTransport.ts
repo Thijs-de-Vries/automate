@@ -798,3 +798,75 @@ export const updateRouteStatus = internalMutation({
     }
   },
 });
+
+/**
+ * Check if notification should be sent and return notification details (used by disruption check action)
+ */
+export const checkAndPrepareNotification = internalQuery({
+  args: {
+    routeId: v.id("pt_routes"),
+  },
+  handler: async (ctx, args) => {
+    const route = await ctx.db.get(args.routeId);
+    if (!route || !route.spaceId) {
+      return null;
+    }
+
+    // Get route status to check if changed
+    const status = await ctx.db
+      .query("pt_route_status")
+      .withIndex("by_route", (q) => q.eq("routeId", args.routeId))
+      .first();
+
+    if (!status || !status.changedSinceLastView) {
+      return null;
+    }
+
+    // Get active disruptions
+    const activeDisruptions = await ctx.db
+      .query("pt_disruptions")
+      .withIndex("by_route_active", (q) => 
+        q.eq("routeId", args.routeId).eq("isActive", true)
+      )
+      .collect();
+
+    if (activeDisruptions.length === 0) {
+      return null;
+    }
+
+    // Create content hash of all disruptions
+    const disruptionHashes = activeDisruptions
+      .map(d => d.contentHash)
+      .sort()
+      .join('|');
+    
+    // Check if this is different from last notification
+    if (route.lastNotificationHash === disruptionHashes) {
+      return null; // Same disruptions, don't send
+    }
+
+    // Return notification details
+    return {
+      spaceId: route.spaceId,
+      routeName: route.name,
+      disruptionCount: activeDisruptions.length,
+      disruptionHashes,
+    };
+  },
+});
+
+/**
+ * Update route notification tracking after sending (used by disruption check action)
+ */
+export const updateNotificationTracking = internalMutation({
+  args: {
+    routeId: v.id("pt_routes"),
+    disruptionHashes: v.string(),
+  },
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.routeId, {
+      lastNotificationHash: args.disruptionHashes,
+      lastNotificationSentAt: Date.now(),
+    });
+  },
+});

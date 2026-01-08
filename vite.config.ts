@@ -36,7 +36,7 @@ export default defineConfig({
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
       },
       manifest: {
-        name: 'auto-m8 - Automation Hub',
+        name: 'auto-m8',
         short_name: 'auto-m8',
         description: 'Your personal automation hub for everyday life',
         id: '/',

@@ -234,6 +234,35 @@ export const checkRouteDisruptions = internalAction({
       routeId: args.routeId,
     });
 
+    // Check if we should send a notification
+    const notificationData = await ctx.runQuery(internal.publicTransport.checkAndPrepareNotification, {
+      routeId: args.routeId,
+    });
+
+    if (notificationData) {
+      // Send notification to space members
+      const disruptionText = notificationData.disruptionCount === 1 
+        ? "disruption" 
+        : "disruptions";
+      
+      await ctx.runAction(internal.notificationsNode.sendPushToSpace, {
+        spaceId: notificationData.spaceId,
+        module: "transport",
+        title: `Disruption on ${notificationData.routeName}`,
+        body: `${notificationData.disruptionCount} ${disruptionText} detected - tap to view`,
+        url: `/transport/${args.routeId}`,
+        tag: `transport-route-${args.routeId}`,
+      });
+
+      // Update notification tracking
+      await ctx.runMutation(internal.publicTransport.updateNotificationTracking, {
+        routeId: args.routeId,
+        disruptionHashes: notificationData.disruptionHashes,
+      });
+
+      console.log(`Sent notification for route ${args.routeId}: ${notificationData.disruptionCount} disruptions`);
+    }
+
     return {
       routeId: args.routeId,
       disruptionsFound: allDisruptions.size,
@@ -268,8 +297,20 @@ function extractAffectedStations(disruption: any, routeStationCodes: string[]): 
 function extractPeriod(disruption: any): string {
   if (disruption.timespans && disruption.timespans.length > 0) {
     const timespan = disruption.timespans[0];
-    const start = timespan.start ? new Date(timespan.start).toLocaleString("nl-NL") : "";
-    const end = timespan.end ? new Date(timespan.end).toLocaleString("nl-NL") : "";
+    const start = timespan.start ? new Date(timespan.start).toLocaleString("nl-NL", { 
+      day: '2-digit', 
+      month: '2-digit', 
+      year: 'numeric', 
+      hour: '2-digit', 
+      minute: '2-digit' 
+    }) : "";
+    const end = timespan.end ? new Date(timespan.end).toLocaleString("nl-NL", { 
+      day: '2-digit', 
+      month: '2-digit', 
+      year: 'numeric', 
+      hour: '2-digit', 
+      minute: '2-digit' 
+    }) : "";
     
     if (start && end) {
       return `${start} - ${end}`;
