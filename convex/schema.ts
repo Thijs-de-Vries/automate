@@ -117,6 +117,9 @@ export default defineSchema({
     spaceId: v.optional(v.id("spaces")), // Which space this belongs to (optional for migration)
     // TODO: Add one-off date support in future
     // oneOffDate: v.optional(v.string()), // "YYYY-MM-DD" for single trips
+    // Notification deduplication
+    lastNotificationHash: v.optional(v.string()),
+    lastNotificationSentAt: v.optional(v.number()),
   }).index("by_space", ["spaceId"]),
 
   // Stations on each route (for checking disruptions at all intermediate stops)

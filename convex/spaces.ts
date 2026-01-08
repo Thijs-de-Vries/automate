@@ -14,28 +14,6 @@ import { query, mutation, internalMutation, internalQuery } from "./_generated/s
 import { v } from "convex/values";
 import type { Id } from "./_generated/dataModel";
 
-// ============================================
-// Available icons for spaces (Lucide icon names)
-// ============================================
-export const SPACE_ICONS = [
-  "Home",
-  "Users",
-  "Heart",
-  "Plane",
-  "Briefcase",
-  "GraduationCap",
-  "Gamepad2",
-  "Music",
-  "Camera",
-  "Utensils",
-  "Car",
-  "TreePine",
-  "Dumbbell",
-  "Palette",
-  "Book",
-  "Star",
-] as const;
-
 // Default notification preferences (all opt-in = false)
 const DEFAULT_NOTIFICATION_PREFS = {
   tasks: false,

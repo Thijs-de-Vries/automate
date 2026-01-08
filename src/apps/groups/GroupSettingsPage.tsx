@@ -25,8 +25,9 @@ import {
   Home,
 } from 'lucide-react'
 import * as LucideIcons from 'lucide-react'
-import { SPACE_ICONS } from '../../../convex/spaces'
+import { SPACE_ICONS } from '../../../convex/constants'
 import { getNotifiableAutomations } from '@/config/automations'
+import { usePushNotifications } from '@/hooks/usePushNotifications'
 
 // Get icon component by name
 function getIconComponent(iconName: string) {
@@ -261,9 +262,24 @@ function NotificationPrefsSection({
   preferences: { tasks: boolean; packing: boolean; transport: boolean; calisthenics: boolean }
 }) {
   const updatePrefs = useMutation(api.spaces.updateNotificationPreferences)
+  const { subscribe } = usePushNotifications()
   
   // Get notifiable automations from config
   const notifiableAutomations = getNotifiableAutomations()
+
+  const handleToggle = async (key: "tasks" | "packing" | "transport" | "calisthenics", currentEnabled: boolean) => {
+    // If enabling notification, request browser permission first
+    if (!currentEnabled) {
+      const granted = await subscribe()
+      if (!granted) {
+        // Permission denied or failed, don't enable the preference
+        return
+      }
+    }
+    
+    // Update preference
+    await updatePrefs({ spaceId, module: key, enabled: !currentEnabled })
+  }
 
   return (
     <div className={cn(
@@ -293,7 +309,7 @@ function NotificationPrefsSection({
                 </div>
               </div>
               <button
-                onClick={() => updatePrefs({ spaceId, module: key, enabled: !isEnabled })}
+                onClick={() => handleToggle(key, isEnabled)}
                 className={cn(
                   'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium',
                   'transition-colors',

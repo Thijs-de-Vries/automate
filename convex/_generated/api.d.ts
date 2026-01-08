@@ -10,6 +10,7 @@
 
 import type * as appMetadata from "../appMetadata.js";
 import type * as calisthenics from "../calisthenics.js";
+import type * as constants from "../constants.js";
 import type * as crons from "../crons.js";
 import type * as notifications from "../notifications.js";
 import type * as notificationsNode from "../notificationsNode.js";
@@ -28,6 +29,7 @@ import type {
 declare const fullApi: ApiFromModules<{
   appMetadata: typeof appMetadata;
   calisthenics: typeof calisthenics;
+  constants: typeof constants;
   crons: typeof crons;
   notifications: typeof notifications;
   notificationsNode: typeof notificationsNode;
