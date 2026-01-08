@@ -6,11 +6,9 @@
 
 import { UserButton } from '@clerk/clerk-react';
 import { usePushNotifications } from '../hooks/usePushNotifications';
-import { useUpdate } from '../contexts/UpdateContext';
 
 export function UserButtonWithNotifications() {
   const { isSupported, isSubscribed, isLoading, toggle, permission } = usePushNotifications();
-  const { isChecking, checkForUpdates } = useUpdate();
 
   // Don't show notification option if not supported
   const showNotificationOption = isSupported;
@@ -39,33 +37,8 @@ export function UserButtonWithNotifications() {
             onClick={handleNotificationToggle}
           />
         )}
-        <UserButton.Action
-          label={isChecking ? 'Checking...' : 'Check for updates'}
-          labelIcon={<RefreshIcon />}
-          onClick={checkForUpdates}
-        />
       </UserButton.MenuItems>
     </UserButton>
-  );
-}
-
-// Refresh icon for update button
-function RefreshIcon() {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      fill="none"
-      viewBox="0 0 24 24"
-      strokeWidth={1.5}
-      stroke="currentColor"
-      style={{ width: 16, height: 16 }}
-    >
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99"
-      />
-    </svg>
   );
 }
 

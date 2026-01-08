@@ -181,4 +181,13 @@ export default defineSchema({
     spaceId: v.optional(v.id("spaces")), // Which space this belongs to (optional for migration)
   }).index("by_user", ["userId"])
     .index("by_space", ["spaceId"]),
+
+  // ============================================
+  // App Metadata - for version tracking
+  // ============================================
+  appMetadata: defineTable({
+    key: v.string(),      // "app_version"
+    value: v.string(),    // Git commit hash (7 chars)
+    updatedAt: v.number(),
+  }).index("by_key", ["key"]),
 });

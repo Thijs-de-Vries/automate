@@ -1,29 +1,26 @@
 /**
  * UpdateContext - Provides PWA update state across the app
  * 
- * Shares the service worker update state between components
- * (UserButton menu and UpdateToast).
+ * Uses version checking against Convex backend instead of service worker.
+ * Checks on visibility changes with 15-minute cooldown.
  */
 
 import { createContext, useContext, type ReactNode } from 'react';
-import { useServiceWorker } from '../hooks/useServiceWorker';
+import { useVersionCheck } from '../hooks/useVersionCheck';
 
 interface UpdateContextType {
   needRefresh: boolean;
   isChecking: boolean;
-  lastCheckResult: 'none' | 'up-to-date' | 'update-available';
-  checkForUpdates: () => Promise<boolean>;
   applyUpdate: () => void;
-  clearCheckResult: () => void;
 }
 
 const UpdateContext = createContext<UpdateContextType | null>(null);
 
 export function UpdateProvider({ children }: { children: ReactNode }) {
-  const swState = useServiceWorker();
+  const versionState = useVersionCheck();
 
   return (
-    <UpdateContext.Provider value={swState}>
+    <UpdateContext.Provider value={versionState}>
       {children}
     </UpdateContext.Provider>
   );

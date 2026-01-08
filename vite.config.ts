@@ -6,6 +6,13 @@ import path from 'path'
 
 // https://vite.dev/config/
 export default defineConfig({
+  define: {
+    '__APP_VERSION__': JSON.stringify(
+      process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) || 
+      process.env.npm_package_version || 
+      'dev'
+    )
+  },
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),

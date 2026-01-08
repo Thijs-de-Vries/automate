@@ -8,6 +8,7 @@
  * @module
  */
 
+import type * as appMetadata from "../appMetadata.js";
 import type * as calisthenics from "../calisthenics.js";
 import type * as crons from "../crons.js";
 import type * as notifications from "../notifications.js";
@@ -25,6 +26,7 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  appMetadata: typeof appMetadata;
   calisthenics: typeof calisthenics;
   crons: typeof crons;
   notifications: typeof notifications;
