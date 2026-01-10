@@ -108,6 +108,64 @@ export const getMatchByMatchId = query({
 });
 
 /**
+ * Get recent chat history for a player (for conversation context)
+ */
+export const getChatHistory = query({
+  args: { 
+    playerId: v.string(),
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, { playerId, limit = 20 }) => {
+    const messages = await ctx.db
+      .query("dotaChatHistory")
+      .withIndex("by_player_time", (q) => q.eq("playerId", playerId))
+      .order("desc")
+      .take(limit);
+    
+    // Return in chronological order (oldest first)
+    return messages.reverse();
+  },
+});
+
+/**
+ * Store a chat message
+ */
+export const storeChatMessage = internalMutation({
+  args: {
+    playerId: v.string(),
+    role: v.string(),
+    content: v.string(),
+  },
+  handler: async (ctx, { playerId, role, content }) => {
+    return await ctx.db.insert("dotaChatHistory", {
+      playerId,
+      role,
+      content,
+      timestamp: Date.now(),
+    });
+  },
+});
+
+/**
+ * Clear chat history for a player
+ */
+export const clearChatHistory = mutation({
+  args: { playerId: v.string() },
+  handler: async (ctx, { playerId }) => {
+    const messages = await ctx.db
+      .query("dotaChatHistory")
+      .withIndex("by_player_time", (q) => q.eq("playerId", playerId))
+      .collect();
+    
+    for (const msg of messages) {
+      await ctx.db.delete(msg._id);
+    }
+    
+    return { deleted: messages.length };
+  },
+});
+
+/**
  * Get all player profiles (for cron)
  */
 export const getAllPlayerProfiles = internalQuery({

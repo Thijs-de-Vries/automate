@@ -82,6 +82,7 @@ export default function DotaCoachApp() {
   const analyzeMatch = useAction((api as any).dotaAnalysis?.analyzeMatch);
   const chatWithCoach = useAction((api as any).dotaAnalysis?.chatWithCoach);
   const resolveSuggestion = useMutation((api as any).dota?.resolveProfileSuggestion);
+  const clearChatHistory = useMutation((api as any).dota?.clearChatHistory);
 
   // Auto-scroll to bottom
   useEffect(() => {
@@ -398,6 +399,14 @@ export default function DotaCoachApp() {
           content: 'No recent matches found. Use `/sync` to fetch your matches from OpenDota!',
         });
       }
+    } else if (message === '/clear') {
+      // Clear chat history
+      await clearChatHistory({ playerId });
+      setMessages([]);
+      addMessage({
+        type: 'system',
+        content: '🧹 Chat history cleared! The coach will start fresh.',
+      });
     } else {
       // Regular chat
       await handleChatMessage(message);
@@ -486,6 +495,7 @@ export default function DotaCoachApp() {
               <li><code>/analyze</code> - Analyze all unanalyzed matches (oldest first)</li>
               <li><code>/analyze &lt;match_id&gt;</code> - Analyze a specific match</li>
               <li><code>/profile</code> - View your player profile</li>
+              <li><code>/clear</code> - Clear chat history and start fresh</li>
             </ul>
             <p className="mt-3">
               Or just chat with me about your playstyle, hero pool, and strategies!

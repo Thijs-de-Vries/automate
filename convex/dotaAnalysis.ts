@@ -224,14 +224,35 @@ export const chatWithCoach = action({
       playerId,
     });
 
-    // Build chat prompt
+    // Get recent chat history for context
+    const chatHistory = await ctx.runQuery((api as any).dota.getChatHistory, {
+      playerId,
+      limit: 10, // Last 10 messages for context
+    });
+
+    // Store user message
+    await ctx.runMutation((internal as any).dota.storeChatMessage, {
+      playerId,
+      role: "user",
+      content: message,
+    });
+
+    // Build chat prompt with history
     const prompt = buildChatPrompt({
       profile,
       userMessage: message,
+      chatHistory,
     });
 
     // Call OpenRouter AI
     const response = await callOpenRouterAIChat(prompt);
+
+    // Store assistant response
+    await ctx.runMutation((internal as any).dota.storeChatMessage, {
+      playerId,
+      role: "assistant",
+      content: response.message,
+    });
 
     // Check if AI wants to update profile
     if (response.wantsToUpdateProfile && response.profileUpdate) {
@@ -339,10 +360,16 @@ Respond in JSON format:
 function buildChatPrompt(params: {
   profile: any;
   userMessage: string;
+  chatHistory: Array<{ role: string; content: string }>;
 }): string {
-  const { profile, userMessage } = params;
+  const { profile, userMessage, chatHistory } = params;
 
-  return `You are a Dota 2 coach having a conversation with a player about their playstyle and hero pool.
+  // Format chat history
+  const historyText = chatHistory.length > 0
+    ? chatHistory.map(msg => `${msg.role === "user" ? "Player" : "Coach"}: ${msg.content}`).join("\n\n")
+    : "No previous conversation";
+
+  return `You are a Dota 2 coach having an ongoing conversation with a player about their playstyle and hero pool.
 
 ## PLAYER PROFILE
 ${profile ? `
@@ -353,12 +380,17 @@ Weaknesses: ${profile.weaknesses.join(", ") || "Not identified yet"}
 Preferred Roles: ${profile.preferredRoles.join(", ") || "Not specified"}
 ` : "No profile data yet"}
 
-## USER MESSAGE
+## CONVERSATION HISTORY
+${historyText}
+
+## CURRENT MESSAGE FROM PLAYER
 ${userMessage}
 
 ## YOUR TASK
-1. Respond naturally and helpfully to the user's message
-2. If the user shares information worth storing in their profile (hero preferences, playstyle, strengths, weaknesses), indicate that you want to update the profile
+1. Continue the conversation naturally, remembering what was discussed before
+2. Reference previous context when relevant (e.g., "As you mentioned earlier about your MMR...")
+3. If the user shares new information worth storing in their profile (hero preferences, playstyle, MMR, strengths, weaknesses), indicate that you want to update the profile
+4. Be conversational and helpful, not repetitive
 
 Respond in JSON format:
 {

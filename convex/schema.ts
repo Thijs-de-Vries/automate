@@ -342,4 +342,12 @@ export default defineSchema({
     createdAt: v.number(),
     resolvedAt: v.optional(v.number()),
   }).index("by_player_status", ["playerId", "status"]),
+
+  // Chat history for conversation context
+  dotaChatHistory: defineTable({
+    playerId: v.string(), // Clerk user ID
+    role: v.string(), // "user" or "assistant"
+    content: v.string(),
+    timestamp: v.number(),
+  }).index("by_player_time", ["playerId", "timestamp"]),
 });
