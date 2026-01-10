@@ -389,8 +389,21 @@ ${userMessage}
 ## YOUR TASK
 1. Continue the conversation naturally, remembering what was discussed before
 2. Reference previous context when relevant (e.g., "As you mentioned earlier about your MMR...")
-3. If the user shares new information worth storing in their profile (hero preferences, playstyle, MMR, strengths, weaknesses), indicate that you want to update the profile
-4. Be conversational and helpful, not repetitive
+3. Be conversational and helpful, not repetitive
+
+## PROFILE UPDATES - BE SELECTIVE BUT CATCH IMPORTANT CHANGES
+Suggest a profile update ONLY for these significant cases:
+- Player explicitly states their MMR/rank (add to profile notes)
+- Player explicitly changes their hero pool (e.g., "I'll focus on X and Y now" = update hero pool)
+- Player identifies a NEW strength or weakness not already in profile
+- Player wants to remove a hero or shift playstyle fundamentally
+
+DO NOT suggest updates for:
+- Minor elaborations on existing weaknesses (e.g., if "laning fundamentals" is listed, don't add "struggles with harassment")
+- Casual conversation or context for coaching advice
+- Things already covered by existing profile entries
+
+IMPORTANT: Hero pool changes are ALWAYS significant. If a player says they're narrowing or changing their hero focus, that's an update_hero_pool suggestion.
 
 Respond in JSON format:
 {
@@ -400,7 +413,7 @@ Respond in JSON format:
     "type": "add_strength|add_weakness|update_hero_pool|update_playstyle",
     "suggestion": "Human-readable suggestion",
     "reasoning": "Why this should be added",
-    "data": {...}
+    "data": { "heroes": ["Hero1", "Hero2"] } // for hero pool updates
   }
 }`;
 }

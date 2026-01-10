@@ -84,6 +84,13 @@ export default function DotaCoachApp() {
   const resolveSuggestion = useMutation((api as any).dota?.resolveProfileSuggestion);
   const clearChatHistory = useMutation((api as any).dota?.clearChatHistory);
 
+  // Clear backend chat history on component mount (fresh session)
+  useEffect(() => {
+    if (playerId && clearChatHistory) {
+      clearChatHistory({ playerId });
+    }
+  }, [playerId]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Auto-scroll to bottom
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });

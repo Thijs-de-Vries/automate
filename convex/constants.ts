@@ -33,7 +33,7 @@ export const DOTA_COACH_CONFIG = {
   model: "xiaomi/mimo-v2-flash:free",
   
   // Maximum matches to sync per player
-  maxMatchesPerSync: 20,
+  maxMatchesPerSync: 5,
   
   // Pinecone configuration
   pinecone: {

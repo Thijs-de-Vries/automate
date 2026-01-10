@@ -401,6 +401,19 @@ function filterValidStrings(arr: string[]): string[] {
 }
 
 /**
+ * Clean a suggestion text - remove "Add '...' to strengths/weaknesses" patterns
+ */
+function cleanSuggestionText(text: string): string {
+  // Match patterns like "Add 'X' to strengths" or "Add 'X' to weaknesses"
+  const match = text.match(/^Add ['"](.+?)['"] to (?:strengths|weaknesses)\.?$/i);
+  if (match) {
+    return match[1];
+  }
+  // Remove trailing periods
+  return text.replace(/\.$/, '');
+}
+
+/**
  * Accept or dismiss profile suggestion
  */
 export const resolveProfileSuggestion = mutation({
@@ -427,7 +440,8 @@ export const resolveProfileSuggestion = mutation({
       if (profile) {
         const data = (suggestion.suggestedData as any) || {};
         // The actual value to add is in suggestion.suggestion, not suggestedData
-        const suggestionText = suggestion.suggestion;
+        // Clean the text to remove "Add '...' to" prefixes
+        const suggestionText = cleanSuggestionText(suggestion.suggestion);
         
         if (suggestion.suggestionType === "add_strength" && suggestionText) {
           await ctx.db.patch(profile._id, {
@@ -507,7 +521,8 @@ export const acceptAllSuggestions = mutation({
       if (profile) {
         const data = (suggestion.suggestedData as any) || {};
         // The actual value to add is in suggestion.suggestion, not suggestedData
-        const suggestionText = suggestion.suggestion;
+        // Clean the text to remove "Add '...' to" prefixes
+        const suggestionText = cleanSuggestionText(suggestion.suggestion);
         
         if (suggestion.suggestionType === "add_strength" && suggestionText) {
           await ctx.db.patch(profile._id, {
@@ -582,11 +597,13 @@ export const reapplyAcceptedSuggestions = mutation({
 
       if (profile) {
         const data = (suggestion.suggestedData as any) || {};
-        const suggestionText = suggestion.suggestion;
+        // Clean the text to remove "Add '...' to" prefixes
+        const suggestionText = cleanSuggestionText(suggestion.suggestion);
         
         if (suggestion.suggestionType === "add_strength" && suggestionText) {
-          // Only add if not already in strengths
-          if (!profile.strengths.includes(suggestionText)) {
+          // Only add if not already in strengths (check both raw and cleaned versions)
+          const cleanedStrengths = profile.strengths.map(cleanSuggestionText);
+          if (!cleanedStrengths.includes(suggestionText)) {
             await ctx.db.patch(profile._id, {
               strengths: filterValidStrings([...profile.strengths, suggestionText]),
               updatedAt: Date.now(),
@@ -594,7 +611,8 @@ export const reapplyAcceptedSuggestions = mutation({
             appliedCount++;
           }
         } else if (suggestion.suggestionType === "add_weakness" && suggestionText) {
-          if (!profile.weaknesses.includes(suggestionText)) {
+          const cleanedWeaknesses = profile.weaknesses.map(cleanSuggestionText);
+          if (!cleanedWeaknesses.includes(suggestionText)) {
             await ctx.db.patch(profile._id, {
               weaknesses: filterValidStrings([...profile.weaknesses, suggestionText]),
               updatedAt: Date.now(),
@@ -621,6 +639,134 @@ export const reapplyAcceptedSuggestions = mutation({
     }
 
     return { total: suggestions.length, applied: appliedCount };
+  },
+});
+
+/**
+ * Full reset - delete all dota data for a player (for CLI: npx convex run dota:fullReset)
+ */
+export const fullReset = mutation({
+  args: { playerId: v.string() },
+  handler: async (ctx, { playerId }) => {
+    const stats = { matches: 0, analyses: 0, suggestions: 0, notes: 0, chat: 0, profile: 0 };
+
+    // Delete matches
+    const matches = await ctx.db
+      .query("dotaMatches")
+      .withIndex("by_player", (q) => q.eq("playerId", playerId))
+      .collect();
+    for (const m of matches) {
+      await ctx.db.delete(m._id);
+      stats.matches++;
+    }
+
+    // Delete analyses
+    const analyses = await ctx.db
+      .query("dotaAnalyses")
+      .filter((q) => q.eq(q.field("playerId"), playerId))
+      .collect();
+    for (const a of analyses) {
+      await ctx.db.delete(a._id);
+      stats.analyses++;
+    }
+
+    // Delete suggestions
+    const suggestions = await ctx.db
+      .query("dotaProfileSuggestions")
+      .filter((q) => q.eq(q.field("playerId"), playerId))
+      .collect();
+    for (const s of suggestions) {
+      await ctx.db.delete(s._id);
+      stats.suggestions++;
+    }
+
+    // Delete coaching notes
+    const notes = await ctx.db
+      .query("dotaCoachingNotes")
+      .filter((q) => q.eq(q.field("playerId"), playerId))
+      .collect();
+    for (const n of notes) {
+      await ctx.db.delete(n._id);
+      stats.notes++;
+    }
+
+    // Delete chat history
+    const chat = await ctx.db
+      .query("dotaChatHistory")
+      .withIndex("by_player_time", (q) => q.eq("playerId", playerId))
+      .collect();
+    for (const c of chat) {
+      await ctx.db.delete(c._id);
+      stats.chat++;
+    }
+
+    // Delete profile
+    const profile = await ctx.db
+      .query("dotaPlayerProfiles")
+      .withIndex("by_player", (q) => q.eq("playerId", playerId))
+      .first();
+    if (profile) {
+      await ctx.db.delete(profile._id);
+      stats.profile = 1;
+    }
+
+    console.log(`Full reset for ${playerId}:`, stats);
+    return stats;
+  },
+});
+
+/**
+ * Clean up profile entries - remove "Add '...' to" prefixes and deduplicate
+ */
+export const cleanupProfile = mutation({
+  args: { playerId: v.string() },
+  handler: async (ctx, { playerId }) => {
+    const profile = await ctx.db
+      .query("dotaPlayerProfiles")
+      .withIndex("by_player", (q) => q.eq("playerId", playerId))
+      .first();
+
+    if (!profile) {
+      return { error: "Profile not found" };
+    }
+
+    // Clean function - remove "Add '...' to strengths/weaknesses" patterns
+    const cleanEntry = (entry: string): string => {
+      // Match patterns like "Add 'X' to strengths" or "Add 'X' to weaknesses"
+      const match = entry.match(/^Add ['"](.+?)['"] to (?:strengths|weaknesses)\.?$/i);
+      if (match) {
+        return match[1];
+      }
+      // Also clean up trailing periods
+      return entry.replace(/\.$/, '');
+    };
+
+    // Clean and deduplicate strengths
+    const cleanedStrengths = [...new Set(
+      profile.strengths
+        .map(cleanEntry)
+        .filter(s => s && s.length > 0)
+    )];
+
+    // Clean and deduplicate weaknesses
+    const cleanedWeaknesses = [...new Set(
+      profile.weaknesses
+        .map(cleanEntry)
+        .filter(s => s && s.length > 0)
+    )];
+
+    await ctx.db.patch(profile._id, {
+      strengths: cleanedStrengths,
+      weaknesses: cleanedWeaknesses,
+      updatedAt: Date.now(),
+    });
+
+    return {
+      strengthsBefore: profile.strengths.length,
+      strengthsAfter: cleanedStrengths.length,
+      weaknessesBefore: profile.weaknesses.length,
+      weaknessesAfter: cleanedWeaknesses.length,
+    };
   },
 });
 
@@ -689,7 +835,7 @@ export const syncPlayerMatches = action({
     accountId: v.string(),
     limit: v.optional(v.number()),
   },
-  handler: async (ctx, { playerId, accountId, limit = 20 }): Promise<{ syncedCount: number; total: number }> => {
+  handler: async (ctx, { playerId, accountId, limit = 5 }): Promise<{ syncedCount: number; total: number }> => {
     const apiKey = process.env.OPENDOTA_API_KEY || "";
     const url = `https://api.opendota.com/api/players/${accountId}/matches?limit=${limit}${apiKey ? `&api_key=${apiKey}` : ""}`;
     
