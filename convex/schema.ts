@@ -259,4 +259,87 @@ export default defineSchema({
     value: v.string(),    // Git commit hash (7 chars)
     updatedAt: v.number(),
   }).index("by_key", ["key"]),
+
+  // ============================================
+  // Dota Coach - AI-powered match analysis
+  // ============================================
+  
+  // Full match data from OpenDota API
+  dotaMatches: defineTable({
+    matchId: v.string(), // OpenDota match ID
+    playerId: v.string(), // Clerk user ID
+    accountId: v.string(), // Steam32 account ID
+    matchData: v.any(), // Full match JSON from OpenDota
+    heroId: v.number(),
+    heroName: v.string(),
+    won: v.boolean(),
+    duration: v.number(), // seconds
+    startTime: v.number(), // Unix timestamp
+    gameMode: v.number(),
+    lobbyType: v.number(),
+    isAnalyzed: v.boolean(),
+    analysisFailed: v.optional(v.boolean()), // True if analysis was attempted but failed
+    fetchedAt: v.number(),
+  }).index("by_player", ["playerId"])
+    .index("by_player_analyzed", ["playerId", "isAnalyzed"])
+    .index("by_player_time", ["playerId", "startTime"])
+    .index("by_match_id", ["matchId"]),
+
+  // AI-generated coaching analysis per match
+  dotaAnalyses: defineTable({
+    matchId: v.id("dotaMatches"),
+    playerId: v.string(), // Clerk user ID
+    draftAnalysis: v.string(),
+    earlyGameAnalysis: v.string(),
+    midGameAnalysis: v.string(),
+    lateGameAnalysis: v.string(),
+    overallSummary: v.string(),
+    analyzedAt: v.number(),
+    modelUsed: v.string(), // e.g., "gpt-4-turbo"
+  }).index("by_match", ["matchId"])
+    .index("by_player", ["playerId"]),
+
+  // Player profile with hero pool and persistent patterns
+  dotaPlayerProfiles: defineTable({
+    playerId: v.string(), // Clerk user ID
+    steamAccountId: v.optional(v.string()), // Steam32 account ID
+    heroPool: v.array(v.object({
+      heroId: v.number(),
+      heroName: v.string(),
+      proficiency: v.string(), // "main", "comfortable", "learning"
+      notes: v.optional(v.string()),
+    })),
+    playstyle: v.optional(v.string()), // General playstyle notes
+    strengths: v.array(v.string()),
+    weaknesses: v.array(v.string()),
+    preferredRoles: v.array(v.string()), // "carry", "mid", "offlane", "support", "roaming"
+    updatedAt: v.number(),
+  }).index("by_player", ["playerId"]),
+
+  // Coaching notes for RAG with Pinecone vector IDs
+  dotaCoachingNotes: defineTable({
+    playerId: v.string(), // Clerk user ID
+    matchId: v.optional(v.id("dotaMatches")),
+    heroId: v.optional(v.number()),
+    heroName: v.optional(v.string()),
+    phase: v.optional(v.string()), // "draft", "early", "mid", "late"
+    category: v.string(), // "laning", "itemization", "positioning", "map_awareness", etc.
+    observation: v.string(), // The actual coaching note
+    pineconeId: v.string(), // Vector ID in Pinecone
+    timestamp: v.number(),
+  }).index("by_player", ["playerId"])
+    .index("by_player_hero", ["playerId", "heroId"])
+    .index("by_player_phase", ["playerId", "phase"]),
+
+  // Profile update suggestions from AI
+  dotaProfileSuggestions: defineTable({
+    playerId: v.string(), // Clerk user ID
+    suggestionType: v.string(), // "add_strength", "add_weakness", "remove_weakness", "update_hero_pool"
+    suggestion: v.string(), // Human-readable suggestion
+    reasoning: v.string(), // Why the AI suggests this
+    suggestedData: v.optional(v.any()), // Structured data for the update (optional - AI doesn't always provide)
+    status: v.string(), // "pending", "accepted", "dismissed"
+    createdAt: v.number(),
+    resolvedAt: v.optional(v.number()),
+  }).index("by_player_status", ["playerId", "status"]),
 });

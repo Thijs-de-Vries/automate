@@ -5,6 +5,7 @@ import {
   Dumbbell,
   Home,
   Zap,
+  Trophy,
   type LucideIcon,
 } from 'lucide-react'
 
@@ -15,6 +16,7 @@ export type AutomationCategory =
   | 'fitness'
   | 'home'
   | 'utilities'
+  | 'gaming'
 
 export interface AutomationConfig {
   id: string
@@ -39,6 +41,7 @@ export const CATEGORIES: CategoryConfig[] = [
   { id: 'transport', name: 'Transport', icon: Train },
   { id: 'travel', name: 'Travel', icon: Luggage },
   { id: 'fitness', name: 'Fitness', icon: Dumbbell },
+  { id: 'gaming', name: 'Gaming', icon: Trophy },
   { id: 'home', name: 'Home', icon: Home },
   { id: 'utilities', name: 'Utilities', icon: Zap },
 ]
@@ -98,6 +101,15 @@ export const AUTOMATIONS: AutomationConfig[] = [
     color: 'text-pink-400',
     notificationKey: 'apartment',
     notificationDescription: 'Item suggestions and updates',
+  },
+  {
+    id: 'dota-coach',
+    name: 'Dota Coach',
+    description: 'AI-powered match analysis with RAG',
+    icon: Trophy,
+    route: '/dota',
+    category: 'gaming',
+    color: 'text-orange-400',
   },
 ]
 

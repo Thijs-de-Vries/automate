@@ -7,7 +7,7 @@
  */
 
 import { cronJobs } from "convex/server";
-import { internal } from "./_generated/api";
+import { internal, api } from "./_generated/api";
 import { internalAction } from "./_generated/server";
 
 const crons = cronJobs();
@@ -33,6 +33,19 @@ crons.daily(
   "early-morning-disruption-check",
   { hourUTC: 4, minuteUTC: 0 }, // 05:00 CET (UTC+1)
   internal.crons.checkMorningDisruptions
+);
+
+// ============================================
+// DOTA COACH - Daily match sync
+// ============================================
+
+/**
+ * Sync Dota 2 matches for all configured players daily at 02:00 UTC
+ */
+crons.daily(
+  "dota-daily-sync",
+  { hourUTC: 2, minuteUTC: 0 },
+  internal.crons.syncDotaMatches
 );
 
 export default crons;
@@ -154,6 +167,38 @@ export async function scheduleFollowUpChecks(ctx: any, route: any) {
 
   console.log(`[Cron] Scheduled ${scheduledCount} checks for ${route.name} (${route.urgencyLevel}) departing at ${route.departureTime}`);
 }
+
+// ============================================
+// DOTA COACH - Daily match sync action
+// ============================================
+
+/**
+ * Sync matches for all players with configured Steam IDs
+ */
+export const syncDotaMatches = internalAction({
+  args: {},
+  handler: async (ctx) => {
+    // Get all player profiles with Steam IDs
+    const profiles = await ctx.runQuery((internal as any).dota.getAllPlayerProfiles, {});
+
+    console.log(`[Cron] Syncing Dota matches for ${profiles.length} players`);
+
+    for (const profile of profiles) {
+      if (profile.steamAccountId) {
+        try {
+          const result = await ctx.runAction((api as any).dota.syncPlayerMatches, {
+            playerId: profile.playerId,
+            accountId: profile.steamAccountId,
+            limit: 20,
+          });
+          console.log(`[Cron] Synced ${result.syncedCount} matches for player ${profile.playerId}`);
+        } catch (error) {
+          console.error(`[Cron] Failed to sync matches for player ${profile.playerId}:`, error);
+        }
+      }
+    }
+  },
+});
 
 // ============================================
 // TODO: One-off date scheduling
