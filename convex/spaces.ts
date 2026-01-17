@@ -20,6 +20,7 @@ const DEFAULT_NOTIFICATION_PREFS = {
   packing: false,
   transport: false,
   calisthenics: false,
+  apartment: false,
 };
 
 // ============================================
@@ -719,7 +720,8 @@ export const updateNotificationPreferences = mutation({
       v.literal("tasks"),
       v.literal("packing"),
       v.literal("transport"),
-      v.literal("calisthenics")
+      v.literal("calisthenics"),
+      v.literal("apartment")
     ),
     enabled: v.boolean(),
   },
@@ -834,6 +836,7 @@ export const migrateDataToPersonalSpaces = internalMutation({
           packing: false,
           transport: false,
           calisthenics: false,
+          apartment: false,
         },
         joinedAt: Date.now(),
       });
