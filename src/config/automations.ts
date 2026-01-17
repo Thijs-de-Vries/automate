@@ -24,7 +24,7 @@ export interface AutomationConfig {
   route: string
   category: AutomationCategory
   color: string // Tailwind color class for accent
-  notificationKey?: 'tasks' | 'packing' | 'transport' | 'calisthenics' // Key for notification preferences
+  notificationKey?: 'tasks' | 'packing' | 'transport' | 'calisthenics' | 'apartment' // Key for notification preferences
   notificationDescription?: string // Description for notification settings
 }
 
@@ -87,6 +87,17 @@ export const AUTOMATIONS: AutomationConfig[] = [
     color: 'text-green-400',
     notificationKey: 'calisthenics',
     notificationDescription: 'Workout updates',
+  },
+  {
+    id: 'apartment',
+    name: 'Apartment',
+    description: 'Track items for your new home',
+    icon: Home,
+    route: '/apartment',
+    category: 'home',
+    color: 'text-pink-400',
+    notificationKey: 'apartment',
+    notificationDescription: 'Item suggestions and updates',
   },
 ]
 

@@ -31,6 +31,7 @@ export default defineSchema({
       packing: v.boolean(),
       transport: v.boolean(),
       calisthenics: v.boolean(),
+      apartment: v.optional(v.boolean()), // Optional for backward compatibility
     }),
     joinedAt: v.number(),
   }).index("by_space", ["spaceId"])
@@ -184,6 +185,71 @@ export default defineSchema({
     spaceId: v.optional(v.id("spaces")), // Which space this belongs to (optional for migration)
   }).index("by_user", ["userId"])
     .index("by_space", ["spaceId"]),
+
+  // ============================================
+  // Apartment app tables
+  // ============================================
+  apartment_items: defineTable({
+    name: v.string(),
+    description: v.optional(v.string()),
+    imageUrl: v.optional(v.string()),
+    purchaseUrl: v.optional(v.string()),
+    category: v.union(
+      v.literal("Kitchen"),
+      v.literal("Living room"),
+      v.literal("Desk"),
+      v.literal("Bedroom"),
+      v.literal("Hallway"),
+      v.literal("Closets"),
+      v.literal("Toilet"),
+      v.literal("Bathroom"),
+      v.literal("Storage"),
+      v.literal("Other")
+    ),
+    estimatedPrice: v.optional(v.number()),
+    actualPrice: v.optional(v.number()),
+    urgency: v.union(
+      v.literal("low"),
+      v.literal("medium"),
+      v.literal("high")
+    ),
+    status: v.union(
+      v.literal("pending"),
+      v.literal("approved"),
+      v.literal("rejected"),
+      v.literal("ordered"),
+      v.literal("delivered")
+    ),
+    submittedBy: v.string(),          // Clerk user ID
+    submittedByName: v.optional(v.string()), // Display name
+    approvedBy: v.optional(v.string()),
+    approvedByName: v.optional(v.string()),
+    rejectedBy: v.optional(v.string()),
+    rejectedByName: v.optional(v.string()),
+    rejectionReason: v.optional(v.string()),
+    orderedDate: v.optional(v.number()),
+    deliveredDate: v.optional(v.number()),
+    spaceId: v.id("spaces"),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_space", ["spaceId"])
+    .index("by_space_and_status", ["spaceId", "status"]),
+
+  apartment_comments: defineTable({
+    itemId: v.id("apartment_items"),
+    userId: v.string(),              // Clerk user ID
+    userName: v.optional(v.string()), // Display name
+    text: v.string(),
+    reactions: v.optional(v.object({
+      thumbsUp: v.array(v.string()),    // Array of user IDs who reacted
+      heart: v.array(v.string()),
+      laugh: v.array(v.string()),
+      wow: v.array(v.string()),
+      sad: v.array(v.string()),
+      pray: v.array(v.string()),
+    })),
+    createdAt: v.number(),
+  }).index("by_item", ["itemId"]),
 
   // ============================================
   // App Metadata - for version tracking

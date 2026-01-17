@@ -108,7 +108,8 @@ export const sendPushToSpace = internalAction({
       v.literal("tasks"),
       v.literal("packing"),
       v.literal("transport"),
-      v.literal("calisthenics")
+      v.literal("calisthenics"),
+      v.literal("apartment")
     ),
     title: v.string(),
     body: v.string(),

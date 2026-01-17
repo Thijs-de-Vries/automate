@@ -8,6 +8,7 @@
  * @module
  */
 
+import type * as apartment from "../apartment.js";
 import type * as appMetadata from "../appMetadata.js";
 import type * as calisthenics from "../calisthenics.js";
 import type * as constants from "../constants.js";
@@ -27,6 +28,7 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  apartment: typeof apartment;
   appMetadata: typeof appMetadata;
   calisthenics: typeof calisthenics;
   constants: typeof constants;

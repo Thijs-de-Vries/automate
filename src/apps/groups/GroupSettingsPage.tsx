@@ -259,7 +259,7 @@ function NotificationPrefsSection({
   preferences,
 }: {
   spaceId: Id<"spaces">
-  preferences: { tasks: boolean; packing: boolean; transport: boolean; calisthenics: boolean }
+  preferences: { tasks: boolean; packing: boolean; transport: boolean; calisthenics: boolean; apartment?: boolean }
 }) {
   const updatePrefs = useMutation(api.spaces.updateNotificationPreferences)
   const { subscribe } = usePushNotifications()
@@ -267,7 +267,7 @@ function NotificationPrefsSection({
   // Get notifiable automations from config
   const notifiableAutomations = getNotifiableAutomations()
 
-  const handleToggle = async (key: "tasks" | "packing" | "transport" | "calisthenics", currentEnabled: boolean) => {
+  const handleToggle = async (key: "tasks" | "packing" | "transport" | "calisthenics" | "apartment", currentEnabled: boolean) => {
     // If enabling notification, request browser permission first
     if (!currentEnabled) {
       const granted = await subscribe()
@@ -309,7 +309,7 @@ function NotificationPrefsSection({
                 </div>
               </div>
               <button
-                onClick={() => handleToggle(key, isEnabled)}
+                onClick={() => handleToggle(key, isEnabled ?? false)}
                 className={cn(
                   'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium',
                   'transition-colors',
