@@ -12,7 +12,17 @@ import { UpdateToast } from './components/UpdateToast'
 import { cn } from '@/lib/utils'
 import { AUTOMATIONS } from '@/config/automations'
 
-// Lazy load mini-apps
+/**
+ * Lazy load app modules for code splitting and faster initial load.
+ * Each module is loaded only when navigated to.
+ * 
+ * ⚠️ TO ADD NEW MODULE:
+ * 1. Add lazy import here: const NewApp = lazy(() => import('./apps/new/NewApp'))
+ * 2. Add route in <Routes> below
+ * 3. Register in src/config/automations.ts
+ * 
+ * See docs/ADDING-NEW-APPS.md for complete guide.
+ */
 const HomePage = lazy(() => import('./apps/home/HomePage'))
 const LibraryPage = lazy(() => import('./apps/library/LibraryPage'))
 const TasksApp = lazy(() => import('./apps/tasks/TasksApp'))
@@ -28,6 +38,9 @@ const CreateGroupPage = lazy(() => import('./apps/groups/CreateGroupPage'))
 const GroupSettingsPage = lazy(() => import('./apps/groups/GroupSettingsPage'))
 const JoinGroupPage = lazy(() => import('./apps/groups/JoinGroupPage'))
 
+/**
+ * Loading spinner shown during lazy module loading and auth initialization.
+ */
 function LoadingSpinner() {
   return (
     <div className="flex items-center justify-center py-16">
@@ -39,6 +52,10 @@ function LoadingSpinner() {
   )
 }
 
+/**
+ * Header shown when inside an automation module.
+ * Displays back button and module icon/name.
+ */
 function NavigationHeader() {
   const location = useLocation()
   const navigate = useNavigate()
@@ -79,6 +96,11 @@ function NavigationHeader() {
   )
 }
 
+/**
+ * Bottom navigation bar (mobile-first design).
+ * Fixed to bottom of screen with backdrop blur and modern styling.
+ * Only shown on root-level pages (Home, Library).
+ */
 function BottomNav() {
   const location = useLocation()
   
@@ -126,6 +148,19 @@ function BottomNav() {
   )
 }
 
+/**
+ * Root App component with routing and layout.
+ * 
+ * Structure:
+ * - UpdateProvider: Checks for app version updates
+ * - Authenticated: Protected routes (require sign-in)
+ *   - SpaceProvider: Manages active space (multi-tenancy)
+ *   - Header: Logo, space switcher, user button
+ *   - NavigationHeader: Back button + module info (when in module)
+ *   - Main: Content area with routes
+ *   - BottomNav: Home/Library navigation
+ * - Unauthenticated: Sign-in page
+ */
 function App() {
   return (
     <UpdateProvider>

@@ -9,25 +9,68 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 
+/**
+ * Category types for organizing automation modules.
+ * Each category represents a different domain of functionality.
+ */
 export type AutomationCategory = 
-  | 'transport'
-  | 'productivity'
-  | 'travel'
-  | 'fitness'
-  | 'home'
-  | 'utilities'
-  | 'gaming'
+  | 'transport'    // Public transport, travel routes
+  | 'productivity' // Tasks, todos, organization
+  | 'travel'       // Packing lists, trip planning
+  | 'fitness'      // Workouts, exercise tracking
+  | 'home'         // Household management, shopping
+  | 'utilities'    // General purpose tools
+  | 'gaming'       // Game coaching and analysis
 
+/**
+ * Configuration for a single automation module.
+ * 
+ * Each module is a self-contained feature accessible via the home page grid.
+ * Modules are lazy-loaded routes with their own backend functions and UI.
+ * 
+ * @example
+ * {
+ *   id: 'tasks',
+ *   name: 'Tasks',
+ *   description: 'Shared task lists and todos',
+ *   icon: CheckSquare,
+ *   route: '/tasks',
+ *   category: 'productivity',
+ *   color: 'text-violet-400',
+ *   notificationKey: 'tasks',
+ *   notificationDescription: 'When tasks are completed'
+ * }
+ */
 export interface AutomationConfig {
+  /** Unique identifier (kebab-case). Used for lookups and analytics. */
   id: string
+  
+  /** Display name shown in UI (title case). */
   name: string
+  
+  /** Brief description shown on home page cards. */
   description: string
+  
+  /** Icon from lucide-react library. */
   icon: LucideIcon
+  
+  /** URL path for this module (must match route in App.tsx). */
   route: string
+  
+  /** Category for grouping on home page. */
   category: AutomationCategory
-  color: string // Tailwind color class for accent
-  notificationKey?: 'tasks' | 'packing' | 'transport' | 'calisthenics' | 'apartment' // Key for notification preferences
-  notificationDescription?: string // Description for notification settings
+  
+  /** Tailwind color class for visual identity (e.g., 'text-blue-400'). */
+  color: string
+  
+  /** 
+   * Key for notification preferences in space_members table.
+   * If undefined, this module doesn't support notifications.
+   */
+  notificationKey?: 'tasks' | 'packing' | 'transport' | 'calisthenics' | 'apartment'
+  
+  /** Human-readable description for notification settings page. */
+  notificationDescription?: string
 }
 
 export interface CategoryConfig {
@@ -36,6 +79,10 @@ export interface CategoryConfig {
   icon: LucideIcon
 }
 
+/**
+ * Available categories for organizing modules.
+ * Used for filtering and grouping on the home page.
+ */
 export const CATEGORIES: CategoryConfig[] = [
   { id: 'productivity', name: 'Productivity', icon: CheckSquare },
   { id: 'transport', name: 'Transport', icon: Train },
@@ -46,6 +93,18 @@ export const CATEGORIES: CategoryConfig[] = [
   { id: 'utilities', name: 'Utilities', icon: Zap },
 ]
 
+/**
+ * Central registry of all automation modules.
+ * 
+ * ⚠️ TO ADD A NEW MODULE:
+ * 1. Add entry to this array
+ * 2. Create component in src/apps/{name}/{Name}App.tsx
+ * 3. Add lazy import and route in src/App.tsx
+ * 4. Add table to schema in convex/schema.ts
+ * 5. Create backend functions in convex/{name}.ts
+ * 
+ * See docs/ADDING-NEW-APPS.md for complete guide.
+ */
 export const AUTOMATIONS: AutomationConfig[] = [
   {
     id: 'tasks',
@@ -113,19 +172,38 @@ export const AUTOMATIONS: AutomationConfig[] = [
   },
 ]
 
+// ============================================
+// Utility Functions
+// ============================================
+
+/**
+ * Get all automations in a specific category.
+ * Useful for filtered views and category pages.
+ */
 export function getAutomationsByCategory(category: AutomationCategory): AutomationConfig[] {
   return AUTOMATIONS.filter(a => a.category === category)
 }
 
+/**
+ * Look up automation config by unique ID.
+ * Returns undefined if not found.
+ */
 export function getAutomationById(id: string): AutomationConfig | undefined {
   return AUTOMATIONS.find(a => a.id === id)
 }
 
+/**
+ * Look up category config by ID.
+ * Returns undefined if not found.
+ */
 export function getCategoryById(id: AutomationCategory): CategoryConfig | undefined {
   return CATEGORIES.find(c => c.id === id)
 }
 
-// Get automations that support notifications (have notificationKey defined)
+/**
+ * Get all automations that support push notifications.
+ * Used for notification settings page.
+ */
 export function getNotifiableAutomations(): AutomationConfig[] {
   return AUTOMATIONS.filter(a => a.notificationKey !== undefined)
 }

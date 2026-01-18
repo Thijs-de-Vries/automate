@@ -1,12 +1,33 @@
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 
+/**
+ * Automate Database Schema
+ * 
+ * This schema defines all tables and relationships for the Automate app.
+ * 
+ * Key Patterns:
+ * - Multi-tenancy: Most tables have `spaceId` field for data isolation
+ * - Indexes: Always add `by_space` index for multi-tenant tables
+ * - User IDs: Store Clerk user IDs as strings in `userId` fields
+ * - Timestamps: Use `createdAt`, `updatedAt` as numbers (Date.now())
+ * - Foreign Keys: Use `v.id("table_name")` for relationships
+ * - Enums: Use `v.union(v.literal(...))` for fixed value sets
+ * 
+ * See docs/ARCHITECTURE.md for detailed patterns and examples.
+ */
 export default defineSchema({
   // ============================================
   // SPACES - Collaborative groups/households
+  // Multi-tenancy core: All user data is scoped to a space
+  // Think of spaces like Slack workspaces or Discord servers
   // ============================================
   
-  // Spaces (called "Groups" in frontend)
+  /**
+   * Spaces (shown as "Groups" in frontend UI)
+   * Each user can belong to multiple spaces and switch between them.
+   * Every user automatically gets a personal space on first sign-in.
+   */
   spaces: defineTable({
     displayName: v.string(),           // User-customizable name
     iconName: v.string(),              // Lucide icon name (e.g., "Home", "Users", "Plane")
@@ -15,7 +36,17 @@ export default defineSchema({
     createdAt: v.number(),
   }).index("by_creator", ["createdBy"]),
 
-  // Space members with roles and notification preferences
+  /**
+   * Space members with roles and notification preferences.
+   * 
+   * Roles:
+   * - creator: Original creator, cannot be removed, full control
+   * - admin: Can manage members, edit space settings
+   * - member: Can use all features, cannot manage
+   * 
+   * Notification preferences stored per member per space.
+   * Each automation module can have its own notification toggle.
+   */
   space_members: defineTable({
     spaceId: v.id("spaces"),
     userId: v.string(),                // Clerk user ID
@@ -38,7 +69,13 @@ export default defineSchema({
     .index("by_user", ["userId"])
     .index("by_space_and_user", ["spaceId", "userId"]),
 
-  // Invite codes for joining spaces
+  /**
+   * Invite codes for joining spaces.
+   * Format: "join-m8te-XXXXX" where XXXXX is random alphanumeric.
+   * 
+   * Supports optional expiry and usage limits.
+   * Anyone with the code can join the space as a member.
+   */
   space_invites: defineTable({
     spaceId: v.id("spaces"),
     code: v.string(),                  // Format: join-m8te-XXXXX
