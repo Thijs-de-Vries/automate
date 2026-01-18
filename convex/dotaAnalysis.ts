@@ -9,11 +9,11 @@
 import { v } from "convex/values";
 import { action } from "./_generated/server";
 import { internal, api } from "./_generated/api";
-import { Id } from "./_generated/dataModel";
+import type { Id } from "./_generated/dataModel";
 import {
   storeCoachingNoteVector,
   querySimilarNotes,
-  batchStoreCoachingNotes,
+  // batchStoreCoachingNotes, // Currently unused
 } from "./dotaPinecone";
 import { DOTA_COACH_CONFIG } from "./constants";
 

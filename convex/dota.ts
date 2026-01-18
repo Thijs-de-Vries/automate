@@ -1,7 +1,7 @@
 import { v } from "convex/values";
-import { mutation, query, action, internalMutation, internalQuery, internalAction } from "./_generated/server";
-import { api, internal } from "./_generated/api";
-import { Id } from "./_generated/dataModel";
+import { mutation, query, action, internalMutation, internalQuery } from "./_generated/server";
+import { internal } from "./_generated/api";
+import type { Id } from "./_generated/dataModel";
 
 // ============================================
 // UTILITIES
@@ -899,7 +899,7 @@ export const syncPlayerMatches = action({
  */
 export const getHeroBenchmarks = action({
   args: { heroId: v.number() },
-  handler: async (ctx, { heroId }) => {
+  handler: async (_ctx, { heroId }) => {
     const apiKey = process.env.OPENDOTA_API_KEY || "";
     const url = `https://api.opendota.com/api/benchmarks?hero_id=${heroId}${apiKey ? `&api_key=${apiKey}` : ""}`;
     
