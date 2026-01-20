@@ -42,44 +42,16 @@ async function requireSpaceAccess(ctx: any, spaceId: any, userId: string) {
 }
 
 // ============================================
-// HELPER: Check if user is admin or creator
-// ============================================
-async function requireAdminAccess(ctx: any, spaceId: any, userId: string) {
-  const membership = await requireSpaceAccess(ctx, spaceId, userId);
-  
-  if (membership.role !== "creator" && membership.role !== "admin") {
-    throw new Error("You must be an admin or creator to perform this action");
-  }
-  
-  return membership;
-}
-
-// ============================================
-// HELPER: Get admins/creators with notifications enabled
-// ============================================
-async function getAdminsWithNotifications(ctx: any, spaceId: any) {
-  const members = await ctx.db
-    .query("space_members")
-    .withIndex("by_space", (q: any) => q.eq("spaceId", spaceId))
-    .collect();
-
-  return members.filter(
-    (m: any) =>
-      (m.role === "creator" || m.role === "admin") &&
-      m.notificationPreferences?.apartment === true
-  );
-}
-
-// ============================================
 // HELPER: Get users who have commented on an item
 // ============================================
-async function getCommenters(ctx: any, itemId: any) {
+async function getCommenters(ctx: any, itemId: any): Promise<string[]> {
   const comments = await ctx.db
     .query("apartment_comments")
     .withIndex("by_item", (q: any) => q.eq("itemId", itemId))
     .collect();
 
-  const uniqueUserIds = [...new Set(comments.map((c: any) => c.userId))];
+  const userIds = comments.map((c: any) => c.userId as string);
+  const uniqueUserIds: string[] = Array.from(new Set(userIds));
   return uniqueUserIds;
 }
 
@@ -92,11 +64,8 @@ export const list = query({
     status: v.optional(
       v.union(
         v.literal("all"),
-        v.literal("pending"),
-        v.literal("approved"),
-        v.literal("rejected"),
-        v.literal("ordered"),
-        v.literal("delivered")
+        v.literal("active"),
+        v.literal("purchased")
       )
     ),
   },
@@ -113,9 +82,6 @@ export const list = query({
     // Filter by status
     if (args.status && args.status !== "all") {
       items = items.filter((item) => item.status === args.status);
-    } else if (!args.status || args.status === "all") {
-      // "All" excludes rejected items
-      items = items.filter((item) => item.status !== "rejected");
     }
 
     // Sort by urgency (high first) then creation date (newest first)
@@ -190,16 +156,14 @@ export const getStats = query({
       .withIndex("by_space", (q) => q.eq("spaceId", args.spaceId!))
       .collect();
 
-    const pending = items.filter((i) => i.status === "pending").length;
-    const approved = items.filter((i) => i.status === "approved").length;
-    const ordered = items.filter((i) => i.status === "ordered").length;
-    const total = items.filter((i) => i.status !== "rejected").length;
+    const active = items.filter((i) => i.status === "active").length;
+    const purchased = items.filter((i) => i.status === "purchased").length;
+    const total = items.length;
 
     return {
       total,
-      pending,
-      approved,
-      ordered,
+      active,
+      purchased,
     };
   },
 });
@@ -240,9 +204,9 @@ export const submit = mutation({
       purchaseUrl: args.purchaseUrl,
       category: args.category,
       estimatedPrice: args.estimatedPrice,
-      actualPrice: undefined,
+      price: undefined,
       urgency: args.urgency,
-      status: "pending",
+      status: "active",
       submittedBy: identity.subject,
       submittedByName: identity.name ?? identity.email ?? undefined,
       spaceId: args.spaceId,
@@ -250,126 +214,19 @@ export const submit = mutation({
       updatedAt: Date.now(),
     });
 
-    // Notify admins/creators with apartment notifications enabled
-    const admins = await getAdminsWithNotifications(ctx, args.spaceId);
-    
-    if (admins.length > 0) {
-      await ctx.scheduler.runAfter(0, internal.notificationsNode.sendPushToSpace, {
-        spaceId: args.spaceId,
-        module: "apartment",
-        title: "New Apartment Item Suggestion",
-        body: `${identity.name ?? "Someone"} suggested: ${args.name}`,
-        url: "/apartment",
-        tag: `apartment-new-${itemId}`,
-      });
-    }
+    // No notification on submit (minimal notification strategy)
 
     return itemId;
   },
 });
 
 // ============================================
-// MUTATION: Approve an item
+// MUTATION: Mark item as purchased
 // ============================================
-export const approve = mutation({
-  args: { id: v.id("apartment_items") },
-  handler: async (ctx, args) => {
-    const identity = await requireAuth(ctx);
-    const item = await ctx.db.get(args.id);
-
-    if (!item) {
-      throw new Error("Item not found");
-    }
-
-    await requireAdminAccess(ctx, item.spaceId, identity.subject);
-
-    await ctx.db.patch(args.id, {
-      status: "approved",
-      approvedBy: identity.subject,
-      approvedByName: identity.name ?? identity.email ?? undefined,
-      updatedAt: Date.now(),
-    });
-
-    // Notify submitter only (if they have notifications enabled)
-    const submitterMembership = await ctx.db
-      .query("space_members")
-      .withIndex("by_space_and_user", (q) =>
-        q.eq("spaceId", item.spaceId).eq("userId", item.submittedBy)
-      )
-      .first();
-
-    if (submitterMembership?.notificationPreferences?.apartment) {
-      await ctx.scheduler.runAfter(0, internal.notificationsNode.sendPushToSpace, {
-        spaceId: item.spaceId,
-        module: "apartment",
-        title: "Item Approved!",
-        body: `Your suggestion "${item.name}" was approved`,
-        url: "/apartment",
-        tag: `apartment-approved-${args.id}`,
-      });
-    }
-  },
-});
-
-// ============================================
-// MUTATION: Reject an item
-// ============================================
-export const reject = mutation({
+export const markAsPurchased = mutation({
   args: {
     id: v.id("apartment_items"),
-    reason: v.string(),
-  },
-  handler: async (ctx, args) => {
-    const identity = await requireAuth(ctx);
-    const item = await ctx.db.get(args.id);
-
-    if (!item) {
-      throw new Error("Item not found");
-    }
-
-    await requireAdminAccess(ctx, item.spaceId, identity.subject);
-
-    await ctx.db.patch(args.id, {
-      status: "rejected",
-      rejectedBy: identity.subject,
-      rejectedByName: identity.name ?? identity.email ?? undefined,
-      rejectionReason: args.reason,
-      updatedAt: Date.now(),
-    });
-
-    // Notify submitter only (if they have notifications enabled)
-    const submitterMembership = await ctx.db
-      .query("space_members")
-      .withIndex("by_space_and_user", (q) =>
-        q.eq("spaceId", item.spaceId).eq("userId", item.submittedBy)
-      )
-      .first();
-
-    if (submitterMembership?.notificationPreferences?.apartment) {
-      await ctx.scheduler.runAfter(0, internal.notificationsNode.sendPushToSpace, {
-        spaceId: item.spaceId,
-        module: "apartment",
-        title: "Item Not Approved",
-        body: `Your suggestion "${item.name}" was not approved: ${args.reason}`,
-        url: "/apartment",
-        tag: `apartment-rejected-${args.id}`,
-      });
-    }
-  },
-});
-
-// ============================================
-// MUTATION: Update item status
-// ============================================
-export const updateStatus = mutation({
-  args: {
-    id: v.id("apartment_items"),
-    status: v.union(
-      v.literal("approved"),
-      v.literal("ordered"),
-      v.literal("delivered")
-    ),
-    actualPrice: v.optional(v.number()),
+    price: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     const identity = await requireAuth(ctx);
@@ -381,22 +238,60 @@ export const updateStatus = mutation({
 
     await requireSpaceAccess(ctx, item.spaceId, identity.subject);
 
-    const updates: any = {
-      status: args.status,
+    await ctx.db.patch(args.id, {
+      status: "purchased",
+      purchasedBy: identity.subject,
+      purchasedByName: identity.name ?? identity.email ?? undefined,
+      purchasedAt: Date.now(),
+      price: args.price ?? item.estimatedPrice,
       updatedAt: Date.now(),
-    };
+    });
 
-    if (args.status === "ordered") {
-      updates.orderedDate = Date.now();
-    } else if (args.status === "delivered") {
-      updates.deliveredDate = Date.now();
+    // Notify submitter only (if they have notifications enabled and aren't the purchaser)
+    if (item.submittedBy !== identity.subject) {
+      const submitterMembership = await ctx.db
+        .query("space_members")
+        .withIndex("by_space_and_user", (q) =>
+          q.eq("spaceId", item.spaceId).eq("userId", item.submittedBy)
+        )
+        .first();
+
+      if (submitterMembership?.notificationPreferences?.apartment) {
+        await ctx.scheduler.runAfter(0, internal.notificationsNode.sendPushToSpace, {
+          spaceId: item.spaceId,
+          module: "apartment",
+          title: "Item Purchased",
+          body: `${identity.name ?? "Someone"} purchased ${item.name}`,
+          url: "/apartment",
+          tag: `apartment-purchased-${args.id}`,
+        });
+      }
+    }
+  },
+});
+
+// ============================================
+// MUTATION: Mark item as active (un-purchase)
+// ============================================
+export const markAsActive = mutation({
+  args: { id: v.id("apartment_items") },
+  handler: async (ctx, args) => {
+    const identity = await requireAuth(ctx);
+    const item = await ctx.db.get(args.id);
+
+    if (!item) {
+      throw new Error("Item not found");
     }
 
-    if (args.actualPrice !== undefined) {
-      updates.actualPrice = args.actualPrice;
-    }
+    await requireSpaceAccess(ctx, item.spaceId, identity.subject);
 
-    await ctx.db.patch(args.id, updates);
+    await ctx.db.patch(args.id, {
+      status: "active",
+      purchasedBy: undefined,
+      purchasedByName: undefined,
+      purchasedAt: undefined,
+      updatedAt: Date.now(),
+    });
   },
 });
 
@@ -516,27 +411,16 @@ export const addComment = mutation({
       createdAt: Date.now(),
     });
 
-    // Notify: submitter + admins/creators + all previous commenters
-    const submitterId = item.submittedBy;
-    const admins = await getAdminsWithNotifications(ctx, item.spaceId);
-    const adminIds = admins.map((a: any) => a.userId);
+    // Notify previous commenters only (minimal notification strategy)
     const commenters = await getCommenters(ctx, args.itemId);
-
-    // Combine and dedupe, exclude current user
-    const notifyUserIds = [
-      submitterId,
-      ...adminIds,
-      ...commenters,
-    ].filter((id, index, self) => 
-      id !== identity.subject && self.indexOf(id) === index
-    );
+    const notifyUserIds: string[] = commenters.filter((id) => id !== identity.subject);
 
     // Check each user's notification preferences
     for (const userId of notifyUserIds) {
       const membership = await ctx.db
         .query("space_members")
         .withIndex("by_space_and_user", (q) =>
-          q.eq("spaceId", item.spaceId).eq("userId", userId)
+          q.eq("spaceId", item.spaceId).eq("userId", userId as string)
         )
         .first();
 
@@ -547,7 +431,7 @@ export const addComment = mutation({
           title: "New Comment",
           body: `${identity.name ?? "Someone"} commented on "${item.name}"`,
           url: "/apartment",
-          tag: `apartment-comment-${args.itemId}-${Date.now()}`,
+          tag: `apartment-comment-${args.itemId}`,
         });
         // Only send one notification per comment event
         break;

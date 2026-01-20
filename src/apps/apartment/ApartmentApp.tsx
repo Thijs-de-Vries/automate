@@ -22,7 +22,7 @@ import {
 
 type ApartmentItem = Doc<"apartment_items">
 
-type Status = "all" | "pending" | "approved" | "rejected" | "ordered" | "delivered"
+type Status = "all" | "active" | "purchased"
 
 const CATEGORIES = [
   "Kitchen",
@@ -51,8 +51,6 @@ export default function ApartmentApp() {
   const [showFilterMenu, setShowFilterMenu] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
   const [selectedItem, setSelectedItem] = useState<ApartmentItem | null>(null)
-  const [showApproveModal, setShowApproveModal] = useState(false)
-  const [showRejectModal, setShowRejectModal] = useState(false)
 
   const items = useQuery(
     api.apartment.list,
@@ -102,10 +100,10 @@ export default function ApartmentApp() {
         <div className="p-3 sm:p-4">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
             <div className="flex-1 min-w-0">
-              <h1 className="text-xl sm:text-2xl font-bold">Apartment Items</h1>
+              <h1 className="text-xl sm:text-2xl font-bold">Shopping List</h1>
               <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mt-1">
                 <p className="text-xs sm:text-sm" style={{ color: 'var(--muted-foreground)' }}>
-                  Track what you need for your new home
+                  Collaborative family wishlist
                 </p>
                 {(statusFilter !== 'all' || categoryFilter !== 'all') && (
                   <div className="flex items-center gap-2 flex-wrap">
@@ -171,16 +169,7 @@ export default function ApartmentApp() {
                 <ItemCard
                   key={item._id}
                   item={item}
-                  isAdmin={isAdmin}
                   onSelect={setSelectedItem}
-                  onApprove={() => {
-                    setSelectedItem(item)
-                    setShowApproveModal(true)
-                  }}
-                  onReject={() => {
-                    setSelectedItem(item)
-                    setShowRejectModal(true)
-                  }}
                 />
               ))
           )}
@@ -219,7 +208,7 @@ export default function ApartmentApp() {
       )}
 
       {/* Item Detail Modal */}
-      {selectedItem && !showApproveModal && !showRejectModal && !showEditModal && (
+      {selectedItem && !showEditModal && (
         <ItemDetailModal
           item={selectedItem}
           isAdmin={isAdmin}
@@ -228,27 +217,7 @@ export default function ApartmentApp() {
         />
       )}
 
-      {/* Approve Modal */}
-      {showApproveModal && selectedItem && (
-        <ApproveModal
-          item={selectedItem}
-          onClose={() => {
-            setShowApproveModal(false)
-            setSelectedItem(null)
-          }}
-        />
-      )}
 
-      {/* Reject Modal */}
-      {showRejectModal && selectedItem && (
-        <RejectModal
-          item={selectedItem}
-          onClose={() => {
-            setShowRejectModal(false)
-            setSelectedItem(null)
-          }}
-        />
-      )}
     </div>
   )
 }
@@ -258,18 +227,15 @@ export default function ApartmentApp() {
 // ============================================
 function ItemCard({
   item,
-  isAdmin,
   onSelect,
-  onApprove,
-  onReject,
 }: {
   item: ApartmentItem
-  isAdmin: boolean
   onSelect: (item: ApartmentItem) => void
-  onApprove: () => void
-  onReject: () => void
 }) {
-  const updateStatus = useMutation(api.apartment.updateStatus)
+  const markAsPurchased = useMutation(api.apartment.markAsPurchased)
+  const markAsActive = useMutation(api.apartment.markAsActive)
+  const [showPriceInput, setShowPriceInput] = useState(false)
+  const [price, setPrice] = useState(item.estimatedPrice?.toString() || '')
 
   return (
     <Card
@@ -309,11 +275,8 @@ function ItemCard({
                 <span
                   className="text-xs px-2 py-0.5 rounded-full capitalize"
                   style={{
-                    backgroundColor: item.status === 'approved' ? '#10b981' :
-                      item.status === 'rejected' ? '#ef4444' :
-                      item.status === 'delivered' ? '#8b5cf6' :
-                      'var(--muted)',
-                    color: ['approved', 'rejected', 'delivered'].includes(item.status) ? '#fff' : 'inherit',
+                    backgroundColor: item.status === 'purchased' ? '#10b981' : 'var(--muted)',
+                    color: item.status === 'purchased' ? '#fff' : 'inherit',
                   }}
                 >
                   {item.status}
@@ -326,9 +289,9 @@ function ItemCard({
               {item.estimatedPrice && (
                 <div className="text-right">
                   <div className="font-semibold text-sm sm:text-base">€{item.estimatedPrice.toFixed(2)}</div>
-                  {item.actualPrice && (
+                  {item.price && (
                     <div className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
-                      Actual: €{item.actualPrice.toFixed(2)}
+                      Paid: €{item.price.toFixed(2)}
                     </div>
                   )}
                 </div>
@@ -343,57 +306,90 @@ function ItemCard({
           )}
 
           <div className="flex items-center gap-2 text-xs" style={{ color: 'var(--muted-foreground)' }}>
-            <span>Suggested by {item.submittedByName || 'Unknown'}</span>
-            {item.approvedByName && <span>• Approved by {item.approvedByName}</span>}
+            <span>Added by {item.submittedByName || 'Unknown'}</span>
+            {item.purchasedByName && <span>• Purchased by {item.purchasedByName}</span>}
           </div>
 
-          {/* Action Buttons for Pending Items */}
-          {item.status === 'pending' && isAdmin && (
-            <div className="flex flex-col sm:flex-row gap-2 mt-3" onClick={(e) => e.stopPropagation()}>
-              <Button
-                size="sm"
-                variant="default"
-                onClick={onApprove}
-                className="gap-1 flex-1"
-              >
-                <Check className="w-4 h-4" />
-                Approve
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={onReject}
-                className="gap-1 flex-1"
-              >
-                <X className="w-4 h-4" />
-                Reject
-              </Button>
+          {/* Action Buttons */}
+          {item.status === 'active' && (
+            <div className="mt-3" onClick={(e) => e.stopPropagation()}>
+              {!showPriceInput ? (
+                <Button
+                  size="sm"
+                  variant="default"
+                  onClick={() => setShowPriceInput(true)}
+                  className="gap-1 w-full sm:w-auto"
+                >
+                  <Check className="w-4 h-4" />
+                  Mark as Purchased
+                </Button>
+              ) : (
+                <div className="space-y-2">
+                  <div>
+                    <label className="text-xs font-medium block mb-1">
+                      How much did you pay? (optional)
+                    </label>
+                    {item.estimatedPrice && (
+                      <p className="text-xs mb-2" style={{ color: 'var(--muted-foreground)' }}>
+                        Estimated: €{item.estimatedPrice.toFixed(2)}
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex gap-2">
+                    <div className="flex-1 relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm" style={{ color: 'var(--muted-foreground)' }}>
+                        €
+                      </span>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        value={price}
+                        onChange={(e) => setPrice(e.target.value)}
+                        placeholder="0.00"
+                        className="pl-7"
+                        autoFocus
+                      />
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="default"
+                      onClick={() => {
+                        markAsPurchased({ 
+                          id: item._id, 
+                          price: price ? parseFloat(price) : undefined 
+                        })
+                        setShowPriceInput(false)
+                      }}
+                      title="Confirm purchase"
+                    >
+                      <Check className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        setShowPriceInput(false)
+                        setPrice(item.estimatedPrice?.toString() || '')
+                      }}
+                      title="Cancel"
+                    >
+                      <X className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
-          {/* Status Update Buttons */}
-          {item.status === 'approved' && (
+          {item.status === 'purchased' && (
             <div className="flex gap-2 mt-3" onClick={(e) => e.stopPropagation()}>
               <Button
                 size="sm"
                 variant="outline"
-                onClick={() => updateStatus({ id: item._id, status: 'ordered' })}
+                onClick={() => markAsActive({ id: item._id })}
                 className="flex-1 sm:flex-none"
               >
-                Mark as Ordered
-              </Button>
-            </div>
-          )}
-
-          {item.status === 'ordered' && (
-            <div className="flex gap-2 mt-3" onClick={(e) => e.stopPropagation()}>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => updateStatus({ id: item._id, status: 'delivered' })}
-                className="flex-1 sm:flex-none"
-              >
-                Mark as Delivered
+                Move Back to List
               </Button>
             </div>
           )}
@@ -589,7 +585,8 @@ function ItemDetailModal({
   const comments = useQuery(api.apartment.getComments, { itemId: item._id }) ?? []
   const addComment = useMutation(api.apartment.addComment)
   const deleteItem = useMutation(api.apartment.deleteItem)
-  const updateStatus = useMutation(api.apartment.updateStatus)
+  const markAsPurchased = useMutation(api.apartment.markAsPurchased)
+  const markAsActive = useMutation(api.apartment.markAsActive)
   const toggleReaction = useMutation(api.apartment.toggleReaction)
   const { user } = useUser()
   const [commentText, setCommentText] = useState('')
@@ -654,11 +651,8 @@ function ItemDetailModal({
                 <span
                   className="text-xs px-2 py-0.5 rounded-full capitalize"
                   style={{
-                    backgroundColor: item.status === 'approved' ? '#10b981' :
-                      item.status === 'rejected' ? '#ef4444' :
-                      item.status === 'delivered' ? '#8b5cf6' :
-                      'var(--muted)',
-                    color: ['approved', 'rejected', 'delivered'].includes(item.status) ? '#fff' : 'inherit',
+                    backgroundColor: item.status === 'purchased' ? '#10b981' : 'var(--muted)',
+                    color: item.status === 'purchased' ? '#fff' : 'inherit',
                   }}
                 >
                   {item.status}
@@ -710,26 +704,6 @@ function ItemDetailModal({
             </div>
           )}
 
-          {/* Status Change - only for approved/ordered/delivered */}
-          {['approved', 'ordered', 'delivered'].includes(item.status) && (
-            <div>
-              <h3 className="font-semibold mb-2">Change Status</h3>
-              <select
-                value={item.status}
-                onChange={(e) => {
-                  const newStatus = e.target.value as 'approved' | 'ordered' | 'delivered'
-                  updateStatus({ id: item._id, status: newStatus })
-                }}
-                className="px-3 py-2 rounded-lg border"
-                style={{ borderColor: 'var(--border)', backgroundColor: 'var(--surface)' }}
-              >
-                <option value="approved">Approved</option>
-                <option value="ordered">Ordered</option>
-                <option value="delivered">Delivered</option>
-              </select>
-            </div>
-          )}
-
           {/* Details Grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {item.estimatedPrice && (
@@ -738,32 +712,20 @@ function ItemDetailModal({
                 <p style={{ color: 'var(--muted-foreground)' }}>€{item.estimatedPrice.toFixed(2)}</p>
               </div>
             )}
-            {item.actualPrice && (
+            {item.price && (
               <div>
-                <h4 className="text-sm font-medium mb-1">Actual Price</h4>
-                <p style={{ color: 'var(--muted-foreground)' }}>€{item.actualPrice.toFixed(2)}</p>
+                <h4 className="text-sm font-medium mb-1">Paid Price</h4>
+                <p style={{ color: 'var(--muted-foreground)' }}>€{item.price.toFixed(2)}</p>
               </div>
             )}
             <div>
-              <h4 className="text-sm font-medium mb-1">Submitted by</h4>
+              <h4 className="text-sm font-medium mb-1">Added by</h4>
               <p style={{ color: 'var(--muted-foreground)' }}>{item.submittedByName || 'Unknown'}</p>
             </div>
-            {item.approvedByName && (
+            {item.purchasedByName && (
               <div>
-                <h4 className="text-sm font-medium mb-1">Approved by</h4>
-                <p style={{ color: 'var(--muted-foreground)' }}>{item.approvedByName}</p>
-              </div>
-            )}
-            {item.rejectedByName && (
-              <div>
-                <h4 className="text-sm font-medium mb-1">Rejected by</h4>
-                <p style={{ color: 'var(--muted-foreground)' }}>{item.rejectedByName}</p>
-              </div>
-            )}
-            {item.rejectionReason && (
-              <div className="col-span-1 sm:col-span-2">
-                <h4 className="text-sm font-medium mb-1">Rejection Reason</h4>
-                <p style={{ color: 'var(--muted-foreground)' }}>{item.rejectionReason}</p>
+                <h4 className="text-sm font-medium mb-1">Purchased by</h4>
+                <p style={{ color: 'var(--muted-foreground)' }}>{item.purchasedByName}</p>
               </div>
             )}
           </div>
@@ -1076,126 +1038,6 @@ function EditItemModal({ item, onClose }: { item: ApartmentItem; onClose: () => 
 }
 
 // ============================================
-// Approve Modal
-// ============================================
-function ApproveModal({ item, onClose }: { item: ApartmentItem; onClose: () => void }) {
-  const approve = useMutation(api.apartment.approve)
-  const [isSubmitting, setIsSubmitting] = useState(false)
-
-  const handleApprove = async () => {
-    setIsSubmitting(true)
-    try {
-      await approve({ id: item._id })
-      onClose()
-    } catch (error) {
-      console.error('Failed to approve item:', error)
-    } finally {
-      setIsSubmitting(false)
-    }
-  }
-
-  return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-2 sm:p-4 z-50">
-      <Card className="w-full max-w-md">
-        <div className="p-4 sm:p-6">
-          <div className="flex items-start gap-3 sm:gap-4 mb-4">
-            <div
-              className="w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center flex-shrink-0"
-              style={{ backgroundColor: '#10b98120' }}
-            >
-              <Check className="w-5 h-5 sm:w-6 sm:h-6 text-green-600" />
-            </div>
-            <div>
-              <h3 className="font-bold text-base sm:text-lg mb-1">Approve Item?</h3>
-              <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
-                Are you sure you want to approve "{item.name}"? The submitter will be notified.
-              </p>
-            </div>
-          </div>
-
-          <div className="flex flex-col-reverse sm:flex-row gap-2 sm:gap-3 justify-end">
-            <Button variant="outline" onClick={onClose} disabled={isSubmitting} className="w-full sm:w-auto">
-              Cancel
-            </Button>
-            <Button onClick={handleApprove} disabled={isSubmitting} className="w-full sm:w-auto">
-              {isSubmitting ? 'Approving...' : 'Approve'}
-            </Button>
-          </div>
-        </div>
-      </Card>
-    </div>
-  )
-}
-
-// ============================================
-// Reject Modal
-// ============================================
-function RejectModal({ item, onClose }: { item: ApartmentItem; onClose: () => void }) {
-  const reject = useMutation(api.apartment.reject)
-  const [reason, setReason] = useState('')
-  const [isSubmitting, setIsSubmitting] = useState(false)
-
-  const handleReject = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!reason.trim()) return
-
-    setIsSubmitting(true)
-    try {
-      await reject({ id: item._id, reason: reason.trim() })
-      onClose()
-    } catch (error) {
-      console.error('Failed to reject item:', error)
-    } finally {
-      setIsSubmitting(false)
-    }
-  }
-
-  return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-2 sm:p-4 z-50">
-      <Card className="w-full max-w-md">
-        <form onSubmit={handleReject}>
-          <div className="p-4 sm:p-6">
-            <div className="flex items-start gap-3 sm:gap-4 mb-4">
-              <div
-                className="w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center flex-shrink-0"
-                style={{ backgroundColor: '#ef444420' }}
-              >
-                <AlertCircle className="w-5 h-5 sm:w-6 sm:h-6 text-red-600" />
-              </div>
-              <div className="flex-1">
-                <h3 className="font-bold text-base sm:text-lg mb-1">Reject Item?</h3>
-                <p className="text-sm mb-4" style={{ color: 'var(--muted-foreground)' }}>
-                  Please provide a reason for rejecting "{item.name}". The submitter will be notified.
-                </p>
-
-                <textarea
-                  value={reason}
-                  onChange={(e) => setReason(e.target.value)}
-                  placeholder="Reason for rejection..."
-                  rows={3}
-                  required
-                  className="w-full px-3 py-2 rounded-lg border resize-none text-sm sm:text-base"
-                  style={{ borderColor: 'var(--border)', backgroundColor: 'var(--surface)' }}
-                />
-              </div>
-            </div>
-
-            <div className="flex flex-col-reverse sm:flex-row gap-2 sm:gap-3 justify-end">
-              <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting} className="w-full sm:w-auto">
-                Cancel
-              </Button>
-              <Button type="submit" disabled={!reason.trim() || isSubmitting} className="w-full sm:w-auto">
-                {isSubmitting ? 'Rejecting...' : 'Reject'}
-              </Button>
-            </div>
-          </div>
-        </form>
-      </Card>
-    </div>
-  )
-}
-
-// ============================================
 // Filter Menu
 // ============================================
 function FilterMenu({
@@ -1263,32 +1105,16 @@ function FilterMenu({
                 onClick={() => onStatusChange('all')}
               />
               <FilterOption
-                label="Pending"
-                count={stats?.pending}
-                selected={statusFilter === 'pending'}
-                onClick={() => onStatusChange('pending')}
+                label="Active"
+                count={stats?.active}
+                selected={statusFilter === 'active'}
+                onClick={() => onStatusChange('active')}
               />
               <FilterOption
-                label="Approved"
-                count={stats?.approved}
-                selected={statusFilter === 'approved'}
-                onClick={() => onStatusChange('approved')}
-              />
-              <FilterOption
-                label="Rejected"
-                selected={statusFilter === 'rejected'}
-                onClick={() => onStatusChange('rejected')}
-              />
-              <FilterOption
-                label="Ordered"
-                count={stats?.ordered}
-                selected={statusFilter === 'ordered'}
-                onClick={() => onStatusChange('ordered')}
-              />
-              <FilterOption
-                label="Delivered"
-                selected={statusFilter === 'delivered'}
-                onClick={() => onStatusChange('delivered')}
+                label="Purchased"
+                count={stats?.purchased}
+                selected={statusFilter === 'purchased'}
+                onClick={() => onStatusChange('purchased')}
               />
             </div>
           </div>

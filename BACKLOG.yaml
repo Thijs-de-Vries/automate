@@ -32,26 +32,6 @@ issues:
       - Convex connection failed
       Mobile-first design required.
 
-  - id: apartment-workflow-clunky
-    title: Apartment app workflow needs simplification
-    description: |
-      Current approval flow (pending → approve → order → deliver) is too clunky and involves too many steps.
-      Notifications are broken. Actual price field exists in schema but no UI to set it.
-      Too many modals for every action - not mobile-friendly.
-    priority: High
-    status: open
-    affected_files:
-      - src/apps/apartment/ApartmentApp.tsx
-      - convex/apartment.ts
-      - convex/schema.ts
-    notes: |
-      User feedback:
-      - Steps are too clunky
-      - Want simpler flow for adding/buying items
-      - Notifications not working
-      - Missing actual price input in UI
-      Consider inline actions instead of modals.
-
   - id: notifications-system-broken
     title: Push notifications not working
     description: |
@@ -71,6 +51,10 @@ issues:
       - Notification permissions
       - Convex notification sending logic
       - Service worker push event handling
+      Apartment module notification logic has been simplified to minimal strategy:
+      - No notifications on item submit (less noisy)
+      - Notify submitter when item purchased (if different person)
+      - Notify previous commenters on new comments
 
   - id: update-mechanism-fragmented
     title: Update mechanism doesn't integrate SW and version checking
@@ -200,23 +184,23 @@ issues:
       - Prevent app initialization with bad config
 
   - id: apartment-1372-lines
-    title: ApartmentApp.tsx is 1372 lines - needs refactoring
+    title: ApartmentApp.tsx significantly reduced - further refactoring possible
     description: |
-      Single file contains entire apartment app with 9+ components defined inline.
-      Makes code hard to maintain, test, and understand.
-      Should be split into separate files.
-    priority: Medium
+      File reduced from 1372 to ~1200 lines after removing approval modals.
+      Still contains 7+ components defined inline.
+      Further splitting into separate files would improve maintainability.
+    priority: Low
     status: open
     affected_files:
       - src/apps/apartment/ApartmentApp.tsx
     notes: |
-      Extract to separate files:
+      Completed: Removed ApproveModal and RejectModal (~140 lines)
+      Remaining to extract:
       - ItemCard.tsx
       - ItemDetailModal.tsx
       - AddItemModal.tsx
       - FilterMenu.tsx
       - CommentSection.tsx
-      - ApprovalButtons.tsx
       Also extract custom hooks:
       - useItemFiltering
       - useItemStats
@@ -324,27 +308,11 @@ issues:
       - Performance analytics
       - User behavior analytics
 
-  - id: apartment-actual-price-no-ui
-    title: Apartment actual price field exists but no UI to set it
-    description: |
-      Schema has actualPrice field but status change dropdowns don't ask for it.
-      When marking item as "ordered" or "delivered", should prompt for actual price
-      to compare against estimated price.
-    priority: High
-    status: open
-    affected_files:
-      - src/apps/apartment/ApartmentApp.tsx
-      - convex/apartment.ts
-    notes: |
-      Add actual price input when changing status to ordered/delivered.
-      Show comparison: "Estimated €50, Actual €45 (€5 saved)"
-      Calculate total budget tracking across all items.
-
   - id: apartment-stored-dates-not-displayed
-    title: Apartment orderedDate and deliveredDate stored but never shown
+    title: Apartment purchasedAt date stored but never shown
     description: |
-      Schema stores orderedDate and deliveredDate but UI never displays them.
-      Users can't see when items were ordered or delivered.
+      Schema stores purchasedAt but UI never displays it.
+      Users can't see when items were purchased.
     priority: Low
     status: open
     affected_files:
@@ -352,9 +320,9 @@ issues:
       - convex/apartment.ts
     notes: |
       Show dates in item detail modal or card:
-      - "Ordered 3 days ago"
-      - "Delivered yesterday"
+      - "Purchased 3 days ago"
       Use relative time formatting.
+      Note: Old orderedDate and deliveredDate fields removed in redesign.
 
   - id: apartment-comment-no-edit-delete
     title: Cannot edit or delete comments in apartment app
@@ -449,18 +417,18 @@ issues:
   - id: apartment-no-url-validation
     title: No URL validation for imageUrl and purchaseUrl fields
     description: |
-      Users can enter invalid URLs which break UI or fail to load.
-      Need client and server-side validation.
+      Users can enter invalid URLs which brsimplified with better deduplication
+    description: |
+      Comment notifications now use simple tag without timestamp for better deduplication.
+      tag: `apartment-comment-${itemId}` replaces all notifications for same item.
+      Further improvement: Consider item-level notification settings (mute specific items).
     priority: Low
     status: open
     affected_files:
-      - src/apps/apartment/ApartmentApp.tsx
       - convex/apartment.ts
     notes: |
-      Validate URLs:
-      - Must start with http:// or https://
-      - Show error message on invalid URL
-      - Optional: Check if URL is reachable
+      Completed: Removed timestamp from notification tags
+      Future enhancement: Per-item notification preferences
 
   - id: apartment-negative-price-validation
     title: Can submit negative prices for apartment items
@@ -495,18 +463,19 @@ issues:
   - id: space-context-race-condition
     title: SpaceContext has potential race condition on initial load
     description: |
-      Multiple useEffects in SpaceContext can trigger simultaneously causing
-      unnecessary mutations and localStorage writes. Should consolidate logic.
+      MultiApartment delete permissions simplified - anyone can delete active items
+    description: |
+      Simplified permission model: all space members can delete active items.
+      Admins retain ability to delete any item (including purchased).
+      More democratic and casual approach fitting collaborative shopping list model.
     priority: Low
     status: open
     affected_files:
-      - src/contexts/SpaceContext.tsx
+      - convex/apartment.ts (line 466-475)
     notes: |
-      Review and simplify SpaceContext initialization logic.
-      Use single useEffect with proper dependency array.
-      Avoid redundant ensurePersonalSpace calls.
-
-  - id: public-transport-old-file-exists
+      Completed: Basic permission check exists (admin or submitter)
+      Consider: Should anyone be able to delete active items? (shopping list model)
+      Or keep current model?
     title: PublicTransportApp.old.tsx file still in codebase
     description: |
       Old version of PublicTransportApp exists in codebase (1300+ lines).

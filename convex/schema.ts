@@ -244,28 +244,21 @@ export default defineSchema({
       v.literal("Other")
     ),
     estimatedPrice: v.optional(v.number()),
-    actualPrice: v.optional(v.number()),
+    price: v.optional(v.number()), // Actual price paid
     urgency: v.union(
       v.literal("low"),
       v.literal("medium"),
       v.literal("high")
     ),
     status: v.union(
-      v.literal("pending"),
-      v.literal("approved"),
-      v.literal("rejected"),
-      v.literal("ordered"),
-      v.literal("delivered")
+      v.literal("active"),
+      v.literal("purchased")
     ),
     submittedBy: v.string(),          // Clerk user ID
     submittedByName: v.optional(v.string()), // Display name
-    approvedBy: v.optional(v.string()),
-    approvedByName: v.optional(v.string()),
-    rejectedBy: v.optional(v.string()),
-    rejectedByName: v.optional(v.string()),
-    rejectionReason: v.optional(v.string()),
-    orderedDate: v.optional(v.number()),
-    deliveredDate: v.optional(v.number()),
+    purchasedBy: v.optional(v.string()), // Who purchased it
+    purchasedByName: v.optional(v.string()),
+    purchasedAt: v.optional(v.number()), // When purchased
     spaceId: v.id("spaces"),
     createdAt: v.number(),
     updatedAt: v.number(),
