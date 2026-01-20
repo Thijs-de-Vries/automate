@@ -12,7 +12,6 @@ import {
   Plus, 
   X, 
   Check, 
-  AlertCircle,
   ExternalLink,
   MessageSquare,
   Trash2,
@@ -585,8 +584,6 @@ function ItemDetailModal({
   const comments = useQuery(api.apartment.getComments, { itemId: item._id }) ?? []
   const addComment = useMutation(api.apartment.addComment)
   const deleteItem = useMutation(api.apartment.deleteItem)
-  const markAsPurchased = useMutation(api.apartment.markAsPurchased)
-  const markAsActive = useMutation(api.apartment.markAsActive)
   const toggleReaction = useMutation(api.apartment.toggleReaction)
   const { user } = useUser()
   const [commentText, setCommentText] = useState('')
