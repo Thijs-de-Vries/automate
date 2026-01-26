@@ -551,7 +551,6 @@ if (prefs?.notificationPreferences?.apartment) {
 ✅ **Do:**
 - Lazy load app routes
 - Index frequently queried fields
-- Use pagination for large lists (future enhancement)
 
 ❌ **Don't:**
 - Query all data on page load
@@ -608,7 +607,4 @@ See `BACKLOG.yaml` for current issues and planned enhancements.
 - Logo navigation to home
 
 **Low Priority:**
-- Storybook for component docs
-- E2E testing
-- Performance monitoring
-- Error tracking service
+None currently.
