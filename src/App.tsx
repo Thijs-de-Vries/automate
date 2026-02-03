@@ -31,6 +31,7 @@ const PublicTransportApp = lazy(() => import('./apps/public-transport/PublicTran
 const CalisthenicsApp = lazy(() => import('./apps/calisthenics/CalisthenicsApp'))
 const ApartmentApp = lazy(() => import('./apps/apartment/ApartmentApp'))
 const DotaCoachApp = lazy(() => import('./apps/dota/DotaCoachApp'))
+const RecipesApp = lazy(() => import('./apps/recipes/RecipesApp'))
 
 // Groups pages
 const GroupsPage = lazy(() => import('./apps/groups/GroupsPage'))
@@ -225,6 +226,7 @@ function App() {
                   <Route path="/calisthenics/*" element={<CalisthenicsApp />} />
                   <Route path="/apartment" element={<ApartmentApp />} />
                   <Route path="/dota" element={<DotaCoachApp />} />
+                  <Route path="/recipes/*" element={<RecipesApp />} />
                   {/* Groups management */}
                   <Route path="/groups" element={<GroupsPage />} />
                   <Route path="/groups/new" element={<CreateGroupPage />} />

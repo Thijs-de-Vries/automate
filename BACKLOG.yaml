@@ -20,6 +20,10 @@ index:
   - "[Medium][open] mutation-error-feedback-poor — Mutation errors shown as alerts or silent failures"
   - "[High][open] env-vars-not-validated — Environment variables not validated at startup"
   - "[High][open] service-worker-hook-unused — useServiceWorker hook exists but never used"
+  - "[Low][open] recipe-nutrition-tracking — Nutrition tracking for recipes"
+  - "[Low][open] recipe-pantry-integration — Pantry/stock tracking integration"
+  - "[Low][open] recipe-shopping-list — Shopping list generation from recipes"
+  - "[Low][open] recipe-cooking-mode — Step-by-step cooking mode"
 
 issues:
   - id: connection-indicator-missing
@@ -136,4 +140,60 @@ issues:
     notes: |
       Related to update-mechanism-fragmented issue.
       Integrate with UpdateContext to unify SW and version checking.
+
+  # ===== RECIPE MODULE FUTURE ENHANCEMENTS =====
+
+  - id: recipe-nutrition-tracking
+    title: Nutrition tracking for recipes
+    description: |
+      Calculate and display calories/macros per serving based on ingredient data.
+      Requires filling in caloriesPer100g on ingredients table.
+    priority: Low
+    status: open
+    affected_files:
+      - convex/recipes.ts
+      - src/apps/recipes/RecipesApp.tsx
+    notes: Consider external API for nutrition lookup.
+
+  - id: recipe-pantry-integration
+    title: Pantry/stock tracking integration
+    description: |
+      Track what ingredients you have at home with quantities.
+      Filter recipes by "can make with what I have".
+      Subtract from stock when marking recipe as cooked.
+    priority: Low
+    status: open
+    affected_files:
+      - convex/schema.ts
+      - convex/recipes.ts
+    notes: |
+      New table: pantry_items { ingredientId, quantity, unit, expiresAt?, spaceId }
+      Requires normalized ingredients model (implemented).
+
+  - id: recipe-shopping-list
+    title: Shopping list generation from recipes
+    description: |
+      "Add ingredients to shopping list" button on recipes.
+      Merge quantities for same ingredient across multiple recipes.
+      Optionally subtract pantry stock.
+    priority: Low
+    status: open
+    affected_files:
+      - convex/schema.ts
+      - convex/recipes.ts
+    notes: |
+      Could integrate with existing tasks module or new shopping module.
+      Requires normalized ingredients model (implemented).
+
+  - id: recipe-cooking-mode
+    title: Step-by-step cooking mode
+    description: |
+      Large text view optimized for kitchen use.
+      Built-in timers per step. Keep screen awake.
+      Optional voice readout of steps.
+    priority: Low
+    status: open
+    affected_files:
+      - src/apps/recipes/RecipesApp.tsx
+    notes: Mobile-first, hands-free interaction.
 

@@ -380,4 +380,79 @@ export default defineSchema({
     content: v.string(),
     timestamp: v.number(),
   }).index("by_player_time", ["playerId", "timestamp"]),
+
+  // ============================================
+  // Recipe app tables
+  // ============================================
+
+  /**
+   * Recipe types (freeform with autocomplete verification)
+   * Examples: "Pizza", "Pasta", "Salad", "Soup", "Dessert"
+   */
+  recipe_types: defineTable({
+    name: v.string(),
+    spaceId: v.id("spaces"),
+    createdAt: v.number(),
+  }).index("by_space", ["spaceId"])
+    .index("by_space_and_name", ["spaceId", "name"]),
+
+  /**
+   * Ingredient categories (freeform with autocomplete verification)
+   * Examples: "Produce", "Dairy", "Meat", "Pantry", "Spices"
+   */
+  ingredient_categories: defineTable({
+    name: v.string(),
+    spaceId: v.id("spaces"),
+    createdAt: v.number(),
+  }).index("by_space", ["spaceId"])
+    .index("by_space_and_name", ["spaceId", "name"]),
+
+  /**
+   * Master ingredient library (shared within space)
+   * Normalized for future nutrition/pantry/shopping integration
+   */
+  ingredients: defineTable({
+    name: v.string(),
+    categoryId: v.optional(v.id("ingredient_categories")),
+    defaultUnit: v.optional(v.string()),
+    caloriesPer100g: v.optional(v.number()), // For future nutrition tracking
+    spaceId: v.id("spaces"),
+    createdAt: v.number(),
+  }).index("by_space", ["spaceId"])
+    .index("by_space_and_name", ["spaceId", "name"]),
+
+  /**
+   * Recipes (parent entity)
+   */
+  recipes: defineTable({
+    name: v.string(),
+    typeId: v.optional(v.id("recipe_types")),
+    servings: v.number(),
+    prepTimeMinutes: v.optional(v.number()),
+    imageUrl: v.optional(v.string()), // Banner image URL
+    source: v.optional(v.string()), // URL, book, "Grandma"
+    instructions: v.array(v.object({
+      title: v.optional(v.string()),
+      instruction: v.string(),
+      note: v.optional(v.string()), // Tips/ideas
+    })),
+    submittedBy: v.string(),
+    submittedByName: v.optional(v.string()),
+    spaceId: v.id("spaces"),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_space", ["spaceId"]),
+
+  /**
+   * Recipe ingredients (join table)
+   * Links recipes to ingredients with quantity/unit
+   */
+  recipe_ingredients: defineTable({
+    recipeId: v.id("recipes"),
+    ingredientId: v.id("ingredients"),
+    quantity: v.number(),
+    unit: v.string(), // Stored as-entered
+    isOptional: v.boolean(),
+    order: v.number(),
+  }).index("by_recipe", ["recipeId"]),
 });

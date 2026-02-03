@@ -22,6 +22,7 @@ import type * as notificationsNode from "../notificationsNode.js";
 import type * as packing from "../packing.js";
 import type * as publicTransport from "../publicTransport.js";
 import type * as publicTransportActions from "../publicTransportActions.js";
+import type * as recipes from "../recipes.js";
 import type * as spaces from "../spaces.js";
 import type * as tasks from "../tasks.js";
 
@@ -46,6 +47,7 @@ declare const fullApi: ApiFromModules<{
   packing: typeof packing;
   publicTransport: typeof publicTransport;
   publicTransportActions: typeof publicTransportActions;
+  recipes: typeof recipes;
   spaces: typeof spaces;
   tasks: typeof tasks;
 }>;

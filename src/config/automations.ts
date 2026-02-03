@@ -6,6 +6,7 @@ import {
   Home,
   Zap,
   Trophy,
+  UtensilsCrossed,
   type LucideIcon,
 } from 'lucide-react'
 
@@ -168,6 +169,15 @@ export const AUTOMATIONS: AutomationConfig[] = [
     icon: Trophy,
     route: '/dota',
     category: 'gaming',
+    color: 'text-orange-400',
+  },
+  {
+    id: 'recipes',
+    name: 'Recipes',
+    description: 'Family recipe collection',
+    icon: UtensilsCrossed,
+    route: '/recipes',
+    category: 'home',
     color: 'text-orange-400',
   },
 ]
