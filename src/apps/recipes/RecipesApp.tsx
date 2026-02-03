@@ -470,7 +470,7 @@ function RecipeDetailView({
             <Card className="divide-y" style={{ borderColor: 'var(--border)' }}>
               {recipe.ingredients.map((ri) => (
                 <div key={ri._id} className="p-3 grid grid-cols-[auto_1fr] gap-4 items-center">
-                  <div className="font-medium text-right min-w-[80px]">
+                  <div className="font-medium text-left min-w-[50px]">
                     {formatQuantity(ri.quantity * scaleFactor)} {ri.unit}
                   </div>
                   <div>
