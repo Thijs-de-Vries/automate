@@ -163,6 +163,8 @@ function BottomNav() {
  * - Unauthenticated: Sign-in page
  */
 function App() {
+  const navigate = useNavigate()
+  
   return (
     <UpdateProvider>
       <Authenticated>
@@ -178,7 +180,10 @@ function App() {
             <header className="sticky top-0 z-40 bg-[var(--background)]/80 backdrop-blur-xl border-b border-[var(--border)]">
               <div className="max-w-2xl mx-auto px-4 py-3 flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="flex items-center gap-2">
+                  <button 
+                    onClick={() => navigate('/')}
+                    className="flex items-center gap-2 transition-transform active:scale-95 hover:opacity-80"
+                  >
                     <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-br from-[var(--primary)] to-violet-600">
                       <Sparkles className="h-4 w-4 text-white" />
                     </div>
@@ -186,7 +191,7 @@ function App() {
                       <span className="text-[var(--foreground)]">auto</span>
                       <span className="text-[var(--primary)]">-m8</span>
                     </h1>
-                  </div>
+                  </button>
                   {/* Space Switcher */}
                   <SpaceSwitcher />
                 </div>
@@ -253,7 +258,7 @@ function App() {
           <header className="sticky top-0 z-40 bg-[var(--background)]/80 backdrop-blur-xl border-b border-[var(--border)]">
             <div className="max-w-2xl mx-auto px-4 py-3 flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 transition-transform active:scale-95 hover:opacity-80 cursor-pointer">
                   <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-br from-[var(--primary)] to-violet-600">
                     <Sparkles className="h-4 w-4 text-white" />
                   </div>
