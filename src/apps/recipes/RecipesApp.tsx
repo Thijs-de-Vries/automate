@@ -896,14 +896,10 @@ function RecipeFormModal({
 
             {/* Ingredients Section */}
             <div>
-              <div className="flex items-center justify-between mb-3">
+              <div className="mb-3">
                 <label className="text-sm font-medium">
                   Ingredients <span className="text-red-500">*</span>
                 </label>
-                <Button type="button" variant="outline" size="sm" onClick={addIngredientRow}>
-                  <Plus className="w-4 h-4 mr-1" />
-                  Add
-                </Button>
               </div>
               <div className="space-y-3">
                 {recipeIngredients.map((ing, index) => (
@@ -920,20 +916,20 @@ function RecipeFormModal({
                     className="p-4 rounded-lg text-center text-sm"
                     style={{ backgroundColor: 'var(--surface)', color: 'var(--muted-foreground)' }}
                   >
-                    Click "Add" to add ingredients
+                    Click "Add Ingredient" to add ingredients
                   </div>
                 )}
+                <Button type="button" variant="outline" onClick={addIngredientRow} className="w-full mt-3">
+                  <Plus className="w-4 h-4 mr-1" />
+                  Add Ingredient
+                </Button>
               </div>
             </div>
 
             {/* Instructions Section */}
             <div>
-              <div className="flex items-center justify-between mb-3">
+              <div className="mb-3">
                 <label className="text-sm font-medium">Instructions</label>
-                <Button type="button" variant="outline" size="sm" onClick={addInstructionStep}>
-                  <Plus className="w-4 h-4 mr-1" />
-                  Add Step
-                </Button>
               </div>
               <div className="space-y-4">
                 {instructions.map((step, index) => (
@@ -980,6 +976,10 @@ function RecipeFormModal({
                     </div>
                   </Card>
                 ))}
+                <Button type="button" variant="outline" onClick={addInstructionStep} className="w-full mt-4">
+                  <Plus className="w-4 h-4 mr-1" />
+                  Add Step
+                </Button>
               </div>
             </div>
           </div>
