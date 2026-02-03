@@ -469,11 +469,11 @@ function RecipeDetailView({
             <h2 className="text-lg font-semibold mb-3">Ingredients</h2>
             <Card className="divide-y" style={{ borderColor: 'var(--border)' }}>
               {recipe.ingredients.map((ri) => (
-                <div key={ri._id} className="p-3 flex items-center gap-3">
-                  <div className="flex-1">
-                    <span className="font-medium">
-                      {formatQuantity(ri.quantity * scaleFactor)} {ri.unit}
-                    </span>{' '}
+                <div key={ri._id} className="p-3 grid grid-cols-[auto_1fr] gap-4 items-center">
+                  <div className="font-medium text-right min-w-[80px]">
+                    {formatQuantity(ri.quantity * scaleFactor)} {ri.unit}
+                  </div>
+                  <div>
                     <span>{ri.ingredient?.name || 'Unknown ingredient'}</span>
                     {ri.isOptional && (
                       <span className="text-xs ml-2" style={{ color: 'var(--muted-foreground)' }}>
