@@ -422,6 +422,7 @@ Version stored in `convex/appMetadata` table, synced from Git SHA via `VITE_APP_
   <Routes>
     {/* Public routes */}
     <Route path="/join/:code" element={<JoinGroupPage />} />
+    <Route path="/privacy" element={<PrivacyPage />} />
     
     {/* Protected routes (require auth) */}
     <Route path="/" element={<ProtectedLayout />}>

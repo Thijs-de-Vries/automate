@@ -32,6 +32,7 @@ const CalisthenicsApp = lazy(() => import('./apps/calisthenics/CalisthenicsApp')
 const ApartmentApp = lazy(() => import('./apps/apartment/ApartmentApp'))
 const DotaCoachApp = lazy(() => import('./apps/dota/DotaCoachApp'))
 const RecipesApp = lazy(() => import('./apps/recipes/RecipesApp'))
+const PrivacyPage = lazy(() => import('./apps/legal/PrivacyPage'))
 
 // Groups pages
 const GroupsPage = lazy(() => import('./apps/groups/GroupsPage'))
@@ -49,6 +50,31 @@ function LoadingSpinner() {
         <div className="w-8 h-8 border-2 border-[var(--primary-muted)] rounded-full" />
         <div className="absolute inset-0 w-8 h-8 border-2 border-transparent border-t-[var(--primary)] rounded-full animate-spin" />
       </div>
+    </div>
+  )
+}
+
+/**
+ * Landing content shown to unauthenticated users on non-public routes.
+ */
+function UnauthenticatedLanding() {
+  return (
+    <div className="flex flex-col items-center justify-center py-20">
+      <div className="flex items-center justify-center w-20 h-20 rounded-2xl bg-gradient-to-br from-[var(--primary)] to-violet-600 mb-6 shadow-2xl shadow-[var(--primary-glow)]">
+        <Sparkles className="h-10 w-10 text-white" />
+      </div>
+      <h2 className="text-3xl font-bold mb-2">
+        <span className="text-[var(--foreground)]">auto</span>
+        <span className="text-[var(--primary)]">-m8</span>
+      </h2>
+      <p className="text-[var(--muted)] mb-8 text-center max-w-xs">
+        Your personal automation hub for everyday life ✨
+      </p>
+      <SignInButton mode="modal">
+        <button className="px-8 py-3 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl font-semibold transition-all duration-200 shadow-lg shadow-[var(--primary-glow)] active:scale-95">
+          Get Started
+        </button>
+      </SignInButton>
     </div>
   )
 }
@@ -225,6 +251,8 @@ function App() {
                 <Routes>
                   <Route path="/" element={<HomePage />} />
                   <Route path="/library" element={<LibraryPage />} />
+                  {/* Public/legal routes accessible when authenticated too */}
+                  <Route path="/privacy" element={<PrivacyPage />} />
                   <Route path="/tasks" element={<TasksApp />} />
                   <Route path="/packing/*" element={<PackingApp />} />
                   <Route path="/transport/*" element={<PublicTransportApp />} />
@@ -279,23 +307,14 @@ function App() {
           </header>
 
           <main className="flex-1 max-w-2xl mx-auto w-full px-4 pt-6 pb-24">
-            <div className="flex flex-col items-center justify-center py-20">
-              <div className="flex items-center justify-center w-20 h-20 rounded-2xl bg-gradient-to-br from-[var(--primary)] to-violet-600 mb-6 shadow-2xl shadow-[var(--primary-glow)]">
-                <Sparkles className="h-10 w-10 text-white" />
-              </div>
-              <h2 className="text-3xl font-bold mb-2">
-                <span className="text-[var(--foreground)]">auto</span>
-                <span className="text-[var(--primary)]">-m8</span>
-              </h2>
-              <p className="text-[var(--muted)] mb-8 text-center max-w-xs">
-                Your personal automation hub for everyday life ✨
-              </p>
-              <SignInButton mode="modal">
-                <button className="px-8 py-3 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl font-semibold transition-all duration-200 shadow-lg shadow-[var(--primary-glow)] active:scale-95">
-                  Get Started
-                </button>
-              </SignInButton>
-            </div>
+            <Suspense fallback={<LoadingSpinner />}>
+              <Routes>
+                {/* Public route available without signing in */}
+                <Route path="/privacy" element={<PrivacyPage />} />
+                {/* Fallback landing for other routes */}
+                <Route path="*" element={<UnauthenticatedLanding />} />
+              </Routes>
+            </Suspense>
           </main>
         </div>
       </Unauthenticated>
