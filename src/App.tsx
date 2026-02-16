@@ -70,6 +70,13 @@ function UnauthenticatedLanding() {
       <p className="text-[var(--muted)] mb-8 text-center max-w-xs">
         Your personal automation hub for everyday life ✨
       </p>
+      {/* privacy policy */}
+      <NavLink
+        to="/privacy"
+        className="text-sm text-[var(--muted)] hover:text-[var(--foreground)] transition-colors mb-6"
+      >
+        Privacy Policy
+      </NavLink>
       <SignInButton mode="modal">
         <button className="px-8 py-3 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl font-semibold transition-all duration-200 shadow-lg shadow-[var(--primary-glow)] active:scale-95">
           Get Started
